@@ -89,7 +89,7 @@ class AOTStreamHub(tk.Tk):
         self.progress = load_progress()
         self.current_category = "All"
         self.search_query = ""
-        self.player_var = tk.StringVar(value=self.progress.get("player", "MPV" if self.mpv_path else "VLC"))
+        self.player_var = tk.StringVar(value=self.progress.get("player", "MPV (On-Screen Skip [Tab])" if self.mpv_path else "VLC Media Player"))
         self.skip_intro_var = tk.BooleanVar(value=False)
         self.enable_subs_var = tk.BooleanVar(value=True)
         
@@ -453,10 +453,11 @@ class AOTStreamHub(tk.Tk):
             if has_sub:
                 cmd.append(f"--sub-file={str(sub_path.resolve())}")
                 
-            # Pass AniSkip params for on-screen [Tab] button & auto-skip
+            auto_val = "1" if self.skip_intro_var.get() else "0"
             if ts and ts.get("op_start") and ts.get("op_end"):
-                auto_val = "1" if self.skip_intro_var.get() else "0"
-                cmd.append(f"--script-opts=aot_skip:op_start={ts['op_start']},op_end={ts['op_end']},auto_skip={auto_val}")
+                cmd.append(f"--script-opts=op_start={ts['op_start']},op_end={ts['op_end']},auto_skip={auto_val}")
+            else:
+                cmd.append(f"--script-opts=auto_skip={auto_val}")
                 
             subprocess.Popen(cmd)
         else:
