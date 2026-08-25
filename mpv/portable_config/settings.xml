@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AppSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <InputDefaultBindingsFixApplied>true</InputDefaultBindingsFixApplied>
+    <ShowMenuFixApplied>true</ShowMenuFixApplied>
+    <MenuUpdateVersion>0</MenuUpdateVersion>
+    <Volume>83</Volume>
+    <RecentFiles>
+        <string>https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E10-1080p.mp4|Attack_on_Titan_Season_3-E10-1080p.mp4</string>
+    </RecentFiles>
+    <WindowLocation>
+        <X>0</X>
+        <Y>0</Y>
+    </WindowLocation>
+    <WindowPosition>
+        <X>960</X>
+        <Y>514</Y>
+    </WindowPosition>
+    <WindowSize>
+        <Width>1099</Width>
+        <Height>618</Height>
+    </WindowSize>
+    <AudioDevice />
+    <ConfigEditorSearch>Video:</ConfigEditorSearch>
+    <Mute>no</Mute>
+    <StartupFolder />
+</AppSettings>

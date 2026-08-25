@@ -1,5 +1,5 @@
 -- aot_aniskip.lua
--- On-screen "Skip Intro [Tab]" button and AniSkip handler for MPV
+-- High-visibility On-Screen "Skip Intro [Tab]" Button for MPV
 local mp = require 'mp'
 local utils = require 'mp.utils'
 
@@ -10,8 +10,9 @@ local ed_end = nil
 local skipped_op = false
 local skipped_ed = false
 local auto_skip = false
+local overlay = mp.create_osd_overlay("ass-events")
 
--- Function to parse script-opts passed from python/cli
+-- Parse script-opts passed from python/cli
 local function parse_opts()
     local opts = mp.get_opt("aot_skip")
     if opts then
@@ -34,20 +35,25 @@ local function perform_skip()
         mp.commandv("seek", op_end, "absolute")
         mp.osd_message("⏩ Opening Skipped", 2)
         skipped_op = true
+        overlay:remove()
     elseif ed_start and ed_end and pos >= (ed_start - 2) and pos < ed_end then
         mp.commandv("seek", ed_end, "absolute")
         mp.osd_message("⏩ Ending Skipped", 2)
         skipped_ed = true
+        overlay:remove()
     else
         mp.commandv("seek", 85, "relative")
         mp.osd_message("⏩ Fast-Forward +85s", 1.5)
     end
 end
 
--- Periodic timer to check current position and show button or auto-skip
+-- Timer to check current position and render visual on-screen button
 local function check_skip_time()
     local pos = mp.get_property_number("time-pos")
-    if not pos then return end
+    if not pos then 
+        overlay:remove()
+        return 
+    end
     
     -- Opening check
     if op_start and op_end and pos >= op_start and pos < op_end then
@@ -55,18 +61,24 @@ local function check_skip_time()
             mp.commandv("seek", op_end, "absolute")
             mp.osd_message("⏩ Opening Auto-Skipped", 2)
             skipped_op = true
+            overlay:remove()
         elseif not skipped_op then
-            local remaining = math.ceil(op_end - pos)
-            mp.osd_message("⏩ [Tab] Skip Opening (" .. remaining .. "s)", 1.0)
+            local rem = math.ceil(op_end - pos)
+            overlay.data = "{\\an3\\fs22\\bord3\\b1\\c&H00FFFF&\\3c&H111111&\\shad1\\pos(1240,670)}  ⏩ Skip Opening (Press TAB)  "
+            overlay:update()
+        else
+            overlay:remove()
         end
-    end
-    
     -- Ending check
-    if ed_start and ed_end and pos >= ed_start and pos < ed_end then
+    elseif ed_start and ed_end and pos >= ed_start and pos < ed_end then
         if not skipped_ed then
-            local remaining = math.ceil(ed_end - pos)
-            mp.osd_message("⏩ [Tab] Skip Ending (" .. remaining .. "s)", 1.0)
+            overlay.data = "{\\an3\\fs22\\bord3\\b1\\c&H00FFFF&\\3c&H111111&\\shad1\\pos(1240,670)}  ⏩ Skip Ending (Press TAB)  "
+            overlay:update()
+        else
+            overlay:remove()
         end
+    else
+        overlay:remove()
     end
 end
 
@@ -74,10 +86,20 @@ mp.add_key_binding("TAB", "aot_skip_intro", perform_skip)
 mp.add_key_binding("s", "aot_skip_intro_s", perform_skip)
 mp.add_key_binding("S", "aot_skip_intro_shift_s", perform_skip)
 
+mp.add_key_binding("MBTN_LEFT", "aot_click_skip", function()
+    local pos = mp.get_property_number("time-pos")
+    if pos and op_start and op_end and pos >= op_start and pos < op_end and not skipped_op then
+        perform_skip()
+    else
+        mp.commandv("cycle", "pause")
+    end
+end)
+
 mp.register_event("file-loaded", function()
     skipped_op = false
     skipped_ed = false
+    overlay:remove()
     parse_opts()
 end)
 
-mp.add_periodic_timer(0.5, check_skip_time)
+mp.add_periodic_timer(0.2, check_skip_time)
