@@ -4,6 +4,13 @@ __pycache__/
 *$py.class
 *.log
 
+# MPV binaries (downloaded via setup_mpv.py)
+mpv/*.exe
+mpv/*.dll
+mpv/*.pdb
+mpv/*.com
+mpv/Locale/
+
 # Agent logs & scratch
 .agents/
 .system_generated/
