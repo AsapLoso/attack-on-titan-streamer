@@ -2,7 +2,7 @@
 """
 Attack on Titan (AOT) - Desktop Stream Hub (Tkinter Native UI)
 Author: Antigravity
-Native dark-mode desktop interface for streaming all 97 episodes in MPV & VLC.
+Native dark-mode desktop interface with Always-On Binge Mode for MPV & VLC.
 """
 
 import sys
@@ -78,7 +78,7 @@ class AOTStreamHub(tk.Tk):
     def __init__(self):
         super().__init__()
         
-        self.title("⚔️ Attack on Titan - Stream Hub")
+        self.title("⚔️ Attack on Titan - Stream Hub (Binge Mode)")
         self.geometry("1150x750")
         self.minsize(900, 580)
         self.configure(bg="#121214")
@@ -89,7 +89,7 @@ class AOTStreamHub(tk.Tk):
         self.progress = load_progress()
         self.current_category = "All"
         self.search_query = ""
-        self.player_var = tk.StringVar(value=self.progress.get("player", "MPV (On-Screen Skip [Tab])" if self.mpv_path else "VLC Media Player"))
+        self.player_var = tk.StringVar(value="MPV (On-Screen Skip [Tab])" if self.mpv_path else "VLC Media Player")
         self.skip_intro_var = tk.BooleanVar(value=False)
         self.enable_subs_var = tk.BooleanVar(value=True)
         
@@ -119,14 +119,14 @@ class AOTStreamHub(tk.Tk):
         
         sub_title = tk.Label(
             title_box, 
-            text="1080p English Dub • MPV & VLC Stream Hub", 
+            text="1080p English Dub • Auto-Next Binge Mode Active", 
             font=("Segoe UI", 9), 
-            fg="#9e9ea7", 
+            fg="#4ade80", 
             bg="#1a1a1f"
         )
         sub_title.pack(anchor="w")
         
-        # Right controls: Player selector, Search, Toggles, Resume
+        # Right controls
         ctrl_box = tk.Frame(header_frame, bg="#1a1a1f")
         ctrl_box.pack(side=tk.RIGHT, fill=tk.Y)
         
@@ -146,7 +146,7 @@ class AOTStreamHub(tk.Tk):
             font=("Segoe UI", 9)
         )
         player_menu.pack()
-        if "MPV" in self.player_var.get() or self.mpv_path:
+        if self.mpv_path:
             player_menu.current(0)
         else:
             player_menu.current(1)
@@ -204,7 +204,7 @@ class AOTStreamHub(tk.Tk):
         last_id = self.progress.get("last_played_id", "S01E01")
         self.resume_btn = tk.Button(
             ctrl_box,
-            text=f"▶ Play Next: {last_id or 'S01E01'}",
+            text=f"▶ Binge: {last_id or 'S01E01'}",
             font=("Segoe UI", 10, "bold"),
             bg="#e50914",
             fg="#ffffff",
@@ -347,7 +347,7 @@ class AOTStreamHub(tk.Tk):
 
         count_lbl = tk.Label(
             self.scroll_content,
-            text=f"Showing {len(filtered)} episodes",
+            text=f"Showing {len(filtered)} episodes (Click ▶ to Binge from any episode)",
             font=("Segoe UI", 10, "bold"),
             fg="#71717a",
             bg="#121214"
@@ -414,10 +414,10 @@ class AOTStreamHub(tk.Tk):
             watched_badge = tk.Label(bot_row, text="✓ Watched", font=("Segoe UI", 8), fg="#4ade80", bg="#1a1a1f")
             watched_badge.pack(side=tk.LEFT)
 
-        # Play Button
+        # Binge Play Button
         play_btn = tk.Button(
             card,
-            text="▶ Stream Now",
+            text="▶ Binge from here",
             font=("Segoe UI", 9, "bold"),
             bg="#27272e",
             fg="#ffffff",
@@ -437,8 +437,32 @@ class AOTStreamHub(tk.Tk):
         
         save_progress(episode["id"], target_player)
         self.progress = load_progress()
-        self.resume_btn.configure(text=f"▶ Play Next: {episode['id']}")
+        self.resume_btn.configure(text=f"▶ Binge: {episode['id']}")
 
+        # 1. Build Binge Queue starting from this episode to the end
+        start_idx = 0
+        for i, ep in enumerate(self.episodes):
+            if ep["id"] == episode["id"]:
+                start_idx = i
+                break
+                
+        queue = self.episodes[start_idx:]
+        
+        # 2. Write dynamic binge session playlist
+        PLAYLISTS_DIR.mkdir(parents=True, exist_ok=True)
+        session_pl = PLAYLISTS_DIR / "binge_session.m3u8"
+        with open(session_pl, "w", encoding="utf-8") as f:
+            f.write("#EXTM3U\n")
+            f.write(f"#PLAYLIST:Attack on Titan (Binge Queue from {episode['id']})\n\n")
+            for ep in queue:
+                title = f"Attack on Titan - {ep['id']}: {ep.get('title', ep['filename'])}"
+                f.write(f"#EXTINF:-1,{title}\n")
+                sub_path = BASE_DIR / ep.get("subtitle_path", "")
+                if sub_path.exists():
+                    f.write(f"#EXTVLCOPT:sub-file={sub_path.resolve().as_posix()}\n")
+                f.write(f"{ep['stream_url']}\n\n")
+
+        # 3. Launch player in Always-On Binge Mode
         sub_path = BASE_DIR / episode.get("subtitle_path", "")
         has_sub = sub_path.exists() and self.enable_subs_var.get()
         ts = episode.get("timestamps", {})
@@ -446,9 +470,8 @@ class AOTStreamHub(tk.Tk):
         if use_mpv and self.mpv_path:
             cmd = [
                 self.mpv_path,
-                episode["stream_url"],
-                f"--title=Attack on Titan - {episode['id']}: {episode.get('title', '')}",
-                "--keep-open=yes"
+                f"--playlist={str(session_pl.resolve())}",
+                "--keep-open=no" # auto advances to next in playlist
             ]
             if has_sub:
                 cmd.append(f"--sub-file={str(sub_path.resolve())}")
@@ -466,13 +489,9 @@ class AOTStreamHub(tk.Tk):
                 return
             cmd = [
                 self.vlc_path,
-                episode["stream_url"],
-                f"--meta-title=Attack on Titan - {episode['id']}: {episode.get('title', '')}"
+                str(session_pl.resolve()),
+                "--play-and-exit"
             ]
-            if has_sub:
-                cmd.append(f"--sub-file={str(sub_path.resolve())}")
-            if self.skip_intro_var.get() and ts and ts.get("op_end"):
-                cmd.append(f"--start-time={int(ts['op_end'])}")
             subprocess.Popen(cmd)
 
         self._refresh_episode_list()
