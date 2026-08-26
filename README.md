@@ -1,6 +1,6 @@
-# ⚔️ Attack on Titan - VLC 4.0 Stream Hub & Subtitle Suite
+# ⚔️ Attack on Titan - Stream Hub & Subtitle Suite
 
-A lightweight, native desktop streaming hub and episode indexer for **Attack on Titan (Shingeki no Kyojin)** in **1080p English Dub**. Streams directly from open archives in **VLC Media Player** with automatic English Closed Captions (CC) and smart intro-skipping support.
+A lightweight, native desktop & mobile streaming hub and episode indexer for **Attack on Titan (Shingeki no Kyojin)** in **1080p English Dub**. Streams directly from open archives in **MPV, VLC, or Web Browser** with automatic English Closed Captions (CC) and smart AniSkip intro-skipping support.
 
 ---
 
@@ -14,27 +14,27 @@ A lightweight, native desktop streaming hub and episode indexer for **Attack on 
   * **The Final Season Part 2** (12 Episodes)
   * **The Final Chapters** (2 Uncut Movie-Length Specials: Special 1 & Special 2)
   * **All 8 Official OVAs** (*No Regrets Parts 1 & 2*, *Lost Girls Parts 1–3*, *Ilse's Notebook*, *The Sudden Visitor*, *Distress*)
-* **Native Desktop GUI**: Sleek dark-themed Tkinter interface (`app_gui.py`) with season tabs, search filtering, and 1-click playback.
-* **Automatic English CC Subtitles**: Pre-indexed and synchronized local `.srt` subtitle library for every episode.
-* **AniSkip Integration**: Accurate Opening (OP) and Ending (ED) timestamps for intro skipping.
-* **VLC Integration**: Designed for VLC 4.0 / 3.0+ with automatic `--sub-file` loading and `.m3u8` playlist exports.
-* **Progress Tracking**: Automatically remembers your last watched episode (`progress.json`).
+* **📱 Mobile Web App (GitHub Pages)**: Live, zero-backend mobile streaming hub at [https://asaploso.github.io/attack-on-titan-streamer/](https://asaploso.github.io/attack-on-titan-streamer/).
+* **🖥️ Native Desktop GUI**: Sleek dark-themed Tkinter interface (`app_gui.py`) with season tabs, search filtering, and 1-click playback.
+* **⏩ Smart Intro-Skipping**: Built-in AniSkip on-screen Skip Opening (`[Tab]` / `S`) button and auto-skip.
+* **💬 Automatic English CC Subtitles**: Pre-indexed and synchronized local & cloud `.srt` subtitle library for every episode.
+* **🍿 Always-On Binge Mode**: Automatically queues and auto-plays subsequent episodes continuously.
 
 ---
 
-## 🚀 Quick Start (Windows)
+## 🚀 Quick Start
 
-### Prerequisites
-* [Python 3.8+](https://www.python.org/downloads/)
-* [VLC Media Player](https://www.videolan.org/vlc/)
+### 1. Mobile & Web Browser
+Open the live web app on any device:
+👉 **[https://asaploso.github.io/attack-on-titan-streamer/](https://asaploso.github.io/attack-on-titan-streamer/)**
 
-### 1. Launch Desktop GUI (Recommended)
-Double-click **`Attack_on_Titan.bat`** or run:
+### 2. Windows Desktop GUI
+Double-click **`Attack on Titan.lnk`** on your Desktop or run:
 ```powershell
 pythonw app_gui.py
 ```
 
-### 2. CLI Streamer
+### 3. CLI Streamer
 ```powershell
 # Interactive Menu
 python play_aot.py
@@ -52,25 +52,17 @@ python play_aot.py -p S01E05 --skip-intro
 python play_aot.py --resume
 ```
 
-### 3. VLC Playlists
-Open any `.m3u8` playlist in the `playlists/` folder directly in VLC:
-* `Attack_on_Titan_Full_Series.m3u8` (All 97 items)
-* `Attack_on_Titan_Season_1.m3u8`
-* `Attack_on_Titan_Season_2.m3u8`
-* `Attack_on_Titan_Season_3.m3u8`
-* `Attack_on_Titan_Final_Season.m3u8`
-* `Attack_on_Titan_OVAs.m3u8`
-
 ---
 
 ## 📁 Repository Structure
 
 ```text
+├── index.html               # Mobile-first web app (GitHub Pages)
 ├── app_gui.py               # Native Tkinter desktop streaming app
 ├── play_aot.py              # CLI player & playlist generator
 ├── Attack_on_Titan.bat      # Windowless quick launcher
 ├── episodes.json            # 97-item master metadata & stream index
-├── playlists/               # M3U8 streaming playlists for VLC
+├── playlists/               # M3U8 streaming playlists for MPV & VLC
 ├── subtitles/               # Offline English CC subtitle library (.srt)
 └── tests/                   # Automated E2E test suite
 ```
