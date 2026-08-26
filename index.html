@@ -166,30 +166,7 @@
       text-shadow: 0 0 4px #000;
     }
 
-    /* Buffering / Loading Indicator */
-    .video-spinner {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.75);
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 24px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      display: none;
-      align-items: center;
-      gap: 10px;
-      z-index: 20;
-      backdrop-filter: blur(4px);
-      pointer-events: none;
-    }
-    .video-spinner i {
-      color: var(--accent);
-      font-size: 1.2rem;
-    }
-
-    /* Floating On-Screen Skip Buttons */
+    /* Floating Skip & Jump Buttons */
     .skip-btn {
       position: absolute;
       bottom: 65px;
@@ -212,6 +189,11 @@
     }
     .skip-btn.ending {
       background: rgba(0, 173, 181, 0.95);
+    }
+    .skip-btn.resume-jump {
+      background: rgba(245, 158, 11, 0.95);
+      right: auto;
+      left: 20px;
     }
     @keyframes pulse {
       0% { transform: scale(1); }
@@ -581,6 +563,7 @@
       .grid { grid-template-columns: 1fr; }
       .container { padding: 12px; }
       .skip-btn { bottom: 50px; right: 12px; padding: 8px 14px; font-size: 0.85rem; }
+      .skip-btn.resume-jump { left: 12px; }
       .resume-toast { bottom: 16px; left: 16px; right: 16px; max-width: none; }
     }
   </style>
@@ -626,10 +609,10 @@
         <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
       </video>
 
-      <!-- Video Buffering Indicator -->
-      <div id="video-spinner" class="video-spinner">
-        <i class="fa-solid fa-circle-notch fa-spin"></i> Buffering stream...
-      </div>
+      <!-- Floating Jump to Saved Time Button -->
+      <button id="jump-resume-btn" class="skip-btn resume-jump" onclick="jumpToSavedTime()">
+        <i class="fa-solid fa-forward"></i> <span id="jump-resume-text">Jump to 14:20</span>
+      </button>
 
       <!-- Floating Skip Buttons -->
       <button id="skip-btn" class="skip-btn" onclick="skipIntro()">
@@ -701,12 +684,13 @@
     let lastPlayed = JSON.parse(localStorage.getItem('aot_last_played') || 'null');
     let autoNextTimer = null;
     let toastHideTimeout = null;
-    let retryCount = 0;
+    let pendingResumeTime = 0;
 
     const video = document.getElementById('main-video');
-    const videoSpinner = document.getElementById('video-spinner');
     const skipBtn = document.getElementById('skip-btn');
     const skipOutroBtn = document.getElementById('skip-outro-btn');
+    const jumpResumeBtn = document.getElementById('jump-resume-btn');
+    const jumpResumeText = document.getElementById('jump-resume-text');
     const subTrack = document.getElementById('sub-track');
 
     const playerSection = document.getElementById('player-section');
@@ -845,10 +829,11 @@
       });
     }
 
+    // Direct clean playback (no complex handshakes)
     function playEpisode(epId, startTime = 0) {
       cancelAutoNext();
       closeResumeToast();
-      retryCount = 0;
+      pendingResumeTime = (startTime > 10) ? startTime : 0;
 
       const epIndex = allEpisodes.findIndex(e => e.id === epId);
       if (epIndex === -1) return;
@@ -874,6 +859,14 @@
       currentTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
       currentMeta.textContent = `${ep.season_title || ''} • 1080p English Dub`;
 
+      // Show Jump to Saved Time button if resume exists
+      if (pendingResumeTime > 0) {
+        jumpResumeText.textContent = `Jump to ${formatTime(pendingResumeTime)}`;
+        jumpResumeBtn.style.display = 'flex';
+      } else {
+        jumpResumeBtn.style.display = 'none';
+      }
+
       // Native Subtitle Track Loading
       const subFile = ep.vtt_path || ep.subtitle_path;
       if (subFile) {
@@ -887,66 +880,37 @@
         subTrack.src = '';
       }
 
-      // Show buffering spinner while establishing connection
-      videoSpinner.style.display = 'flex';
+      // Load stream directly
       video.src = ep.stream_url;
-
-      // Adaptive canplay Handshake + 200ms Socket Grace Ping Buffer
-      const onStreamReady = () => {
-        videoSpinner.style.display = 'none';
-        if (startTime > 0) {
-          video.currentTime = startTime;
-        }
-        setTimeout(() => {
-          video.play().catch(e => console.log("Play ready:", e));
-        }, 200);
-      };
-
-      video.addEventListener('canplay', onStreamReady, { once: true });
+      video.play().catch(e => console.log("Standard playback started"));
     }
 
-    // Auto-Recovery from network blips (max 2 retries)
-    video.addEventListener('playing', () => {
-      retryCount = 0;
-      videoSpinner.style.display = 'none';
-    });
-    video.addEventListener('waiting', () => {
-      videoSpinner.style.display = 'flex';
-    });
-    video.addEventListener('canplay', () => {
-      retryCount = 0;
-      videoSpinner.style.display = 'none';
-    });
-
-    video.addEventListener('error', (e) => {
-      const err = video.error;
-      console.warn("Video network error encountered:", err);
-      if (err && (err.code === MediaError.MEDIA_ERR_NETWORK || err.code === MediaError.MEDIA_ERR_DECODE)) {
-        if (retryCount < 2) {
-          retryCount++;
-          const curTime = video.currentTime;
-          console.log(`Auto-recovering stream (attempt ${retryCount}) from timestamp: ${curTime}s`);
-          setTimeout(() => {
-            if (currentEpisodeIndex !== -1) {
-              const ep = allEpisodes[currentEpisodeIndex];
-              video.src = ep.stream_url;
-              video.addEventListener('canplay', () => {
-                if (curTime > 0) video.currentTime = curTime;
-                setTimeout(() => video.play().catch(() => {}), 200);
-              }, { once: true });
-            }
-          }, 1200);
-        }
+    // Just like skip intro, jump to saved timestamp when clicked or after buffering
+    function jumpToSavedTime() {
+      if (pendingResumeTime > 0) {
+        video.currentTime = pendingResumeTime;
+        pendingResumeTime = 0;
+        jumpResumeBtn.style.display = 'none';
       }
-    });
+    }
 
-    // Timeupdate
+    // Timeupdate: auto-jump if pending and buffered > 3s, monitor skips
     let lastSaveTime = 0;
     video.addEventListener('timeupdate', () => {
       if (currentEpisodeIndex === -1) return;
       const ep = allEpisodes[currentEpisodeIndex];
       const ts = ep.timestamps || {};
       const cur = video.currentTime;
+
+      // Auto jump to resume time once buffered
+      if (pendingResumeTime > 0 && cur >= 2) {
+        jumpToSavedTime();
+      }
+
+      // Hide jump button after 15s of video
+      if (cur > 15 && jumpResumeBtn.style.display !== 'none') {
+        jumpResumeBtn.style.display = 'none';
+      }
 
       // Update last played log in localStorage
       const now = Date.now();
