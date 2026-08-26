@@ -166,6 +166,29 @@
       text-shadow: 0 0 4px #000;
     }
 
+    /* Buffering / Loading Indicator */
+    .video-spinner {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 24px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 20;
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+    }
+    .video-spinner i {
+      color: var(--accent);
+      font-size: 1.2rem;
+    }
+
     /* Floating On-Screen Skip Buttons */
     .skip-btn {
       position: absolute;
@@ -603,6 +626,11 @@
         <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
       </video>
 
+      <!-- Video Buffering Indicator -->
+      <div id="video-spinner" class="video-spinner">
+        <i class="fa-solid fa-circle-notch fa-spin"></i> Buffering stream...
+      </div>
+
       <!-- Floating Skip Buttons -->
       <button id="skip-btn" class="skip-btn" onclick="skipIntro()">
         <i class="fa-solid fa-forward"></i> Skip Opening (Tab)
@@ -676,6 +704,7 @@
     let retryCount = 0;
 
     const video = document.getElementById('main-video');
+    const videoSpinner = document.getElementById('video-spinner');
     const skipBtn = document.getElementById('skip-btn');
     const skipOutroBtn = document.getElementById('skip-outro-btn');
     const subTrack = document.getElementById('sub-track');
@@ -858,21 +887,36 @@
         subTrack.src = '';
       }
 
+      // Show buffering spinner while establishing connection
+      videoSpinner.style.display = 'flex';
       video.src = ep.stream_url;
 
-      if (startTime > 0) {
-        const seekOnReady = () => {
+      // Adaptive canplay Handshake + 200ms Socket Grace Ping Buffer
+      const onStreamReady = () => {
+        videoSpinner.style.display = 'none';
+        if (startTime > 0) {
           video.currentTime = startTime;
-        };
-        video.addEventListener('loadedmetadata', seekOnReady, { once: true });
-      }
+        }
+        setTimeout(() => {
+          video.play().catch(e => console.log("Play ready:", e));
+        }, 200);
+      };
 
-      video.play().catch(e => console.log("Play interrupted:", e));
+      video.addEventListener('canplay', onStreamReady, { once: true });
     }
 
-    // Auto-Recovery from network glitches (max 2 retries)
-    video.addEventListener('playing', () => { retryCount = 0; });
-    video.addEventListener('canplay', () => { retryCount = 0; });
+    // Auto-Recovery from network blips (max 2 retries)
+    video.addEventListener('playing', () => {
+      retryCount = 0;
+      videoSpinner.style.display = 'none';
+    });
+    video.addEventListener('waiting', () => {
+      videoSpinner.style.display = 'flex';
+    });
+    video.addEventListener('canplay', () => {
+      retryCount = 0;
+      videoSpinner.style.display = 'none';
+    });
 
     video.addEventListener('error', (e) => {
       const err = video.error;
@@ -886,9 +930,9 @@
             if (currentEpisodeIndex !== -1) {
               const ep = allEpisodes[currentEpisodeIndex];
               video.src = ep.stream_url;
-              video.addEventListener('loadedmetadata', () => {
+              video.addEventListener('canplay', () => {
                 if (curTime > 0) video.currentTime = curTime;
-                video.play().catch(() => {});
+                setTimeout(() => video.play().catch(() => {}), 200);
               }, { once: true });
             }
           }, 1200);
