@@ -141,30 +141,38 @@
       background: #000;
       outline: none;
     }
+    video::cue {
+      background: rgba(0, 0, 0, 0.75) !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      font-size: 1.25rem !important;
+      line-height: 1.4 !important;
+      text-shadow: 0 0 4px #000 !important;
+    }
 
     /* Custom High-Contrast Subtitle Overlay */
     .sub-overlay {
       position: absolute;
-      bottom: 54px;
+      bottom: 60px;
       left: 50%;
       transform: translateX(-50%);
       width: 90%;
       max-width: 900px;
       text-align: center;
       pointer-events: none;
-      z-index: 20;
+      z-index: 30;
       display: none;
     }
     .sub-text {
       display: inline-block;
       color: #ffffff;
-      font-size: clamp(16px, 2.6vw, 25px);
+      font-size: clamp(16px, 2.8vw, 26px);
       font-weight: 700;
       line-height: 1.35;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border-radius: 6px;
-      background: rgba(0, 0, 0, 0.65);
-      text-shadow: 0 0 5px #000, 0 0 8px #000, 0 2px 4px #000;
+      background: rgba(0, 0, 0, 0.7);
+      text-shadow: 0 0 6px #000, 0 0 8px #000, 0 2px 4px #000;
     }
 
     /* Floating On-Screen Skip Buttons */
@@ -183,7 +191,7 @@
       display: none;
       align-items: center;
       gap: 8px;
-      z-index: 25;
+      z-index: 35;
       box-shadow: 0 4px 15px rgba(0,0,0,0.7);
       animation: pulse 1.5s infinite;
       backdrop-filter: blur(4px);
@@ -257,7 +265,7 @@
       align-items: center;
       justify-content: center;
       gap: 15px;
-      z-index: 30;
+      z-index: 40;
       text-align: center;
       padding: 20px;
     }
@@ -477,7 +485,7 @@
       .grid { grid-template-columns: 1fr; }
       .container { padding: 12px; }
       .skip-btn { bottom: 50px; right: 12px; padding: 8px 14px; font-size: 0.85rem; }
-      .sub-overlay { bottom: 44px; }
+      .sub-overlay { bottom: 50px; }
       .resume-toast { bottom: 16px; left: 16px; right: 16px; max-width: none; }
     }
   </style>
@@ -616,7 +624,6 @@
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    // Parse SRT or WebVTT into Cue array
     function parseSubtitles(data) {
       data = data.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       const cues = [];
@@ -646,6 +653,13 @@
       ccToggleBtn.classList.toggle('cc-active', subtitlesEnabled);
       if (!subtitlesEnabled) {
         subOverlay.style.display = 'none';
+        if (video.textTracks && video.textTracks.length > 0) {
+          video.textTracks[0].mode = 'disabled';
+        }
+      } else {
+        if (video.textTracks && video.textTracks.length > 0) {
+          video.textTracks[0].mode = 'showing';
+        }
       }
     }
 
@@ -783,11 +797,11 @@
       currentTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
       currentMeta.textContent = `${ep.season_title || ''} • 1080p English Dub`;
 
-      // Reset Subtitle cues
+      // Reset Subtitle state
       currentCues = [];
       subOverlay.style.display = 'none';
 
-      // Remove old track
+      // Remove old track elements
       video.querySelectorAll('track').forEach(t => t.remove());
 
       const subFile = ep.vtt_path || ep.subtitle_path;
@@ -801,14 +815,20 @@
           .then(rawText => {
             currentCues = parseSubtitles(rawText);
 
-            // Also attach as native track
+            // Native WebVTT track
             const track = document.createElement('track');
             track.kind = 'subtitles';
-            track.label = 'English';
+            track.label = 'English CC';
             track.srclang = 'en';
             track.src = encodedSubUrl;
             track.default = true;
             video.appendChild(track);
+            
+            setTimeout(() => {
+              if (video.textTracks && video.textTracks.length > 0 && subtitlesEnabled) {
+                video.textTracks[0].mode = 'showing';
+              }
+            }, 100);
           })
           .catch(err => {
             console.warn('Subtitle fetch error:', err);
@@ -832,7 +852,7 @@
       const ts = ep.timestamps || {};
       const cur = video.currentTime;
 
-      // 1. High-Contrast Subtitle Rendering
+      // 1. Render High-Contrast Subtitle Text
       if (subtitlesEnabled && currentCues.length > 0) {
         const activeCue = currentCues.find(c => cur >= c.start && cur <= c.end);
         if (activeCue) {
@@ -845,7 +865,7 @@
         subOverlay.style.display = 'none';
       }
 
-      // 2. Update last played log in localStorage every 4s
+      // 2. Update last played log in localStorage
       const now = Date.now();
       if (now - lastSaveTime > 4000 && cur > 5) {
         lastSaveTime = now;
