@@ -605,9 +605,7 @@
   <!-- Video Player Section -->
   <div id="player-section">
     <div class="video-wrapper" id="video-wrapper">
-      <video id="main-video" controls playsinline preload="auto">
-        <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
-      </video>
+      <video id="main-video" controls playsinline preload="auto"></video>
 
       <!-- Floating Jump to Saved Time Button -->
       <button id="jump-resume-btn" class="skip-btn resume-jump" onclick="jumpToSavedTime()">
@@ -643,6 +641,7 @@
       <div class="quick-controls">
         <button class="btn-skip-jump intro" onclick="skipIntro()"><i class="fa-solid fa-forward"></i> Jump Intro</button>
         <button class="btn-skip-jump outro" onclick="skipOutro()"><i class="fa-solid fa-forward-step"></i> Jump Outro</button>
+        <button class="btn-skip-jump" onclick="toggleFullscreen()"><i class="fa-solid fa-expand"></i> Fullscreen (F)</button>
         <button class="btn-skip-jump" onclick="playNextEpisode(true)"><i class="fa-solid fa-step-forward"></i> Next</button>
         <label style="font-size:0.75rem; color:var(--muted); display:flex; align-items:center; gap:4px; margin-left:8px; cursor:pointer;">
           <input type="checkbox" id="auto-skip-chk"> Auto-Skip OP
@@ -691,7 +690,6 @@
     const skipOutroBtn = document.getElementById('skip-outro-btn');
     const jumpResumeBtn = document.getElementById('jump-resume-btn');
     const jumpResumeText = document.getElementById('jump-resume-text');
-    const subTrack = document.getElementById('sub-track');
 
     const playerSection = document.getElementById('player-section');
     const currentTitle = document.getElementById('current-title');
@@ -829,7 +827,7 @@
       });
     }
 
-    // Direct clean playback (no complex handshakes)
+    // Direct clean playback with reliable Subtitle Blob Loader
     function playEpisode(epId, startTime = 0) {
       cancelAutoNext();
       closeResumeToast();
@@ -867,17 +865,41 @@
         jumpResumeBtn.style.display = 'none';
       }
 
-      // Native Subtitle Track Loading
+      // Remove previous tracks and load fresh subtitle blob
+      video.querySelectorAll('track').forEach(t => t.remove());
+
       const subFile = ep.vtt_path || ep.subtitle_path;
       if (subFile) {
-        subTrack.src = encodeURI(subFile);
-        setTimeout(() => {
-          if (video.textTracks && video.textTracks.length > 0) {
-            video.textTracks[0].mode = 'showing';
-          }
-        }, 150);
-      } else {
-        subTrack.src = '';
+        const encodedSubUrl = encodeURI(subFile);
+        fetch(encodedSubUrl)
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.text();
+          })
+          .then(rawText => {
+            let vttText = rawText;
+            if (!vttText.startsWith('WEBVTT')) {
+              vttText = 'WEBVTT\n\n' + rawText.replace(/(\d+:\d+:\d+),(\d+)/g, '$1.$2');
+            }
+            const blob = new Blob([vttText], { type: 'text/vtt;charset=utf-8' });
+            const blobUrl = URL.createObjectURL(blob);
+            const track = document.createElement('track');
+            track.kind = 'subtitles';
+            track.label = 'English';
+            track.srclang = 'en';
+            track.src = blobUrl;
+            track.default = true;
+            video.appendChild(track);
+
+            setTimeout(() => {
+              if (video.textTracks && video.textTracks.length > 0) {
+                video.textTracks[0].mode = 'showing';
+              }
+            }, 100);
+          })
+          .catch(err => {
+            console.warn('Subtitle fetch error:', err);
+          });
       }
 
       // Load stream directly
@@ -891,6 +913,23 @@
         video.currentTime = pendingResumeTime;
         pendingResumeTime = 0;
         jumpResumeBtn.style.display = 'none';
+      }
+    }
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+          video.webkitRequestFullscreen();
+        } else if (video.webkitEnterFullscreen) {
+          video.webkitEnterFullscreen(); // iOS
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
       }
     }
 
@@ -1118,6 +1157,9 @@
       } else if (keyBuffer.includes('tatakae') || keyBuffer.includes('rumbling')) {
         keyBuffer = '';
         triggerTatakae();
+      } else if (key === 'f') {
+        e.preventDefault();
+        toggleFullscreen();
       } else if (key === 'tab' || key === 's') {
         e.preventDefault();
         skipIntro();
