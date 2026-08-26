@@ -150,6 +150,14 @@
       padding-top: 56.25%; /* 16:9 Aspect Ratio */
       background: #000;
     }
+    .video-wrapper:fullscreen {
+      padding-top: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     video#main-video {
       position: absolute;
       top: 0; left: 0;
@@ -157,13 +165,38 @@
       background: #000;
       outline: none;
     }
-    video::cue {
-      background: rgba(0, 0, 0, 0.75);
+    .video-wrapper:fullscreen video#main-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Subtitle High-Contrast Overlay */
+    .sub-overlay {
+      position: absolute;
+      bottom: 50px;
+      left: 4%;
+      right: 4%;
+      text-align: center;
+      pointer-events: none;
+      z-index: 30;
+      display: none;
+    }
+    .video-wrapper:fullscreen .sub-overlay {
+      bottom: 75px;
+    }
+    .sub-text {
+      display: inline-block;
+      background: rgba(0, 0, 0, 0.82);
       color: #ffffff;
+      font-size: clamp(1.05rem, 2.3vw, 1.65rem);
       font-weight: 700;
-      font-size: 1.18rem;
-      line-height: 1.4;
-      text-shadow: 0 0 4px #000;
+      line-height: 1.35;
+      padding: 4px 14px;
+      border-radius: 6px;
+      text-shadow: 0 0 4px #000, 0 0 8px #000;
+      letter-spacing: 0.3px;
+      max-width: 90%;
     }
 
     /* Floating Skip & Jump Buttons */
@@ -245,6 +278,11 @@
     .btn-skip-jump:hover { background: #2f2f3a; }
     .btn-skip-jump.intro { color: #ffca28; }
     .btn-skip-jump.outro { color: var(--cyan); }
+    .btn-skip-jump.cc-btn.active {
+      background: rgba(229, 9, 20, 0.25);
+      border-color: var(--accent);
+      color: #ff4d4d;
+    }
 
     /* Next Episode Overlay */
     .next-overlay {
@@ -609,6 +647,11 @@
         <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
       </video>
 
+      <!-- Subtitle High-Contrast Screen Overlay -->
+      <div id="sub-overlay" class="sub-overlay">
+        <div id="sub-text" class="sub-text"></div>
+      </div>
+
       <!-- Floating Jump to Saved Time Button -->
       <button id="jump-resume-btn" class="skip-btn resume-jump" onclick="jumpToSavedTime()">
         <i class="fa-solid fa-forward"></i> <span id="jump-resume-text">Jump to 14:20</span>
@@ -643,6 +686,7 @@
       <div class="quick-controls">
         <button class="btn-skip-jump intro" onclick="skipIntro()"><i class="fa-solid fa-forward"></i> Jump Intro</button>
         <button class="btn-skip-jump outro" onclick="skipOutro()"><i class="fa-solid fa-forward-step"></i> Jump Outro</button>
+        <button id="cc-toggle-btn" class="btn-skip-jump cc-btn active" onclick="toggleSubtitles()"><i class="fa-solid fa-closed-captioning"></i> CC</button>
         <button class="btn-skip-jump" onclick="toggleFullscreen()"><i class="fa-solid fa-expand"></i> Fullscreen (F)</button>
         <button class="btn-skip-jump" onclick="playNextEpisode(true)"><i class="fa-solid fa-step-forward"></i> Next</button>
         <label style="font-size:0.75rem; color:var(--muted); display:flex; align-items:center; gap:4px; margin-left:8px; cursor:pointer;">
@@ -687,8 +731,15 @@
     let toastHideTimeout = null;
     let pendingResumeTime = 0;
 
+    let currentCues = [];
+    let ccEnabled = true;
+
     const video = document.getElementById('main-video');
     const subTrack = document.getElementById('sub-track');
+    const subOverlay = document.getElementById('sub-overlay');
+    const subText = document.getElementById('sub-text');
+    const ccToggleBtn = document.getElementById('cc-toggle-btn');
+
     const skipBtn = document.getElementById('skip-btn');
     const skipOutroBtn = document.getElementById('skip-outro-btn');
     const jumpResumeBtn = document.getElementById('jump-resume-btn');
@@ -713,6 +764,44 @@
       const m = Math.floor(sec / 60);
       const s = Math.floor(sec % 60);
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Parse SRT/VTT with full CR stripping & blank line resilience
+    function parseSubtitles(rawText) {
+      const text = rawText.replace(/\r/g, '');
+      const rawLines = text.split('\n').map(l => l.trim());
+      const cues = [];
+      let curCue = null;
+
+      for (const line of rawLines) {
+        if (!line) continue;
+        if (/^\d+$/.test(line)) continue; // ignore cue index
+
+        if (line.includes('-->')) {
+          const m = line.match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
+          if (m) {
+            const start = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]) + parseInt(m[4])/1000;
+            const end = parseInt(m[5])*3600 + parseInt(m[6])*60 + parseInt(m[7]) + parseInt(m[8])/1000;
+            curCue = { start, end, text: [] };
+            cues.push(curCue);
+          }
+        } else if (curCue) {
+          curCue.text.push(line);
+        }
+      }
+
+      cues.forEach(c => {
+        c.html = c.text.join('<br>');
+      });
+      return cues;
+    }
+
+    function toggleSubtitles() {
+      ccEnabled = !ccEnabled;
+      ccToggleBtn.classList.toggle('active', ccEnabled);
+      if (!ccEnabled) {
+        subOverlay.style.display = 'none';
+      }
     }
 
     // Load episodes catalog
@@ -830,10 +919,12 @@
       });
     }
 
-    // Direct clean playback with original working Subtitle Blob Loader
+    // Direct clean playback with reliable Subtitle Engine
     function playEpisode(epId, startTime = 0) {
       cancelAutoNext();
       closeResumeToast();
+      currentCues = [];
+      subOverlay.style.display = 'none';
       pendingResumeTime = (startTime > 10) ? startTime : 0;
 
       const epIndex = allEpisodes.findIndex(e => e.id === epId);
@@ -868,7 +959,7 @@
         jumpResumeBtn.style.display = 'none';
       }
 
-      // Original Working Subtitle Loader
+      // Subtitle Loader (Dual-Layer: Custom Overlay + Native WebVTT Track)
       const subFile = ep.subtitle_path || ep.vtt_path;
       if (subFile) {
         const encodedSubUrl = encodeURI(subFile);
@@ -877,23 +968,25 @@
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.text();
           })
-          .then(srtText => {
-            const vttText = "WEBVTT\n\n" + srtText.replace(/(\d+:\d+:\d+),(\d+)/g, "$1.$2");
+          .then(rawText => {
+            currentCues = parseSubtitles(rawText);
+            console.log(`Loaded ${currentCues.length} subtitle cues for ${ep.id}`);
+
+            // Also attach WebVTT track
+            const vttText = "WEBVTT\n\n" + rawText.replace(/\r/g, '').replace(/(\d+:\d+:\d+),(\d+)/g, "$1.$2");
             const blob = new Blob([vttText], { type: 'text/vtt;charset=utf-8' });
             subTrack.src = URL.createObjectURL(blob);
             subTrack.track.mode = "showing";
           })
           .catch(err => {
             console.warn('Subtitle fetch error:', err);
-            subTrack.src = '';
+            currentCues = [];
           });
-      } else {
-        subTrack.src = '';
       }
 
       // Load stream directly
       video.src = ep.stream_url;
-      video.play().catch(e => console.log("Play interrupted:", e));
+      video.play().catch(e => console.log("Play started"));
     }
 
     // Jump to saved timestamp when clicked or after buffering
@@ -905,13 +998,12 @@
       }
     }
 
-    // Fullscreen Toggle
+    // Fullscreen Toggle on Video Wrapper
     function toggleFullscreen() {
+      const wrapper = document.getElementById('video-wrapper');
       if (!document.fullscreenElement) {
-        if (video.requestFullscreen) {
-          video.requestFullscreen();
-        } else if (video.webkitRequestFullscreen) {
-          video.webkitRequestFullscreen();
+        if (wrapper.requestFullscreen) {
+          wrapper.requestFullscreen();
         } else if (video.webkitEnterFullscreen) {
           video.webkitEnterFullscreen(); // iOS
         }
@@ -922,13 +1014,26 @@
       }
     }
 
-    // Timeupdate: auto-jump if pending and buffered > 3s, monitor skips
+    // Timeupdate: auto-jump, monitor subtitle cues, and skips
     let lastSaveTime = 0;
     video.addEventListener('timeupdate', () => {
       if (currentEpisodeIndex === -1) return;
       const ep = allEpisodes[currentEpisodeIndex];
       const ts = ep.timestamps || {};
       const cur = video.currentTime;
+
+      // Render Subtitle Cue on Overlay
+      if (ccEnabled && currentCues.length > 0) {
+        const active = currentCues.find(c => cur >= c.start && cur <= c.end);
+        if (active) {
+          subText.innerHTML = active.html;
+          subOverlay.style.display = 'block';
+        } else {
+          subOverlay.style.display = 'none';
+        }
+      } else {
+        subOverlay.style.display = 'none';
+      }
 
       // Auto jump to resume time once buffered
       if (pendingResumeTime > 0 && cur >= 2) {
@@ -1146,6 +1251,9 @@
       } else if (keyBuffer.includes('tatakae') || keyBuffer.includes('rumbling')) {
         keyBuffer = '';
         triggerTatakae();
+      } else if (key === 'c') {
+        e.preventDefault();
+        toggleSubtitles();
       } else if (key === 'f') {
         e.preventDefault();
         toggleFullscreen();
