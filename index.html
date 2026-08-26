@@ -141,13 +141,30 @@
       background: #000;
       outline: none;
     }
-    video::cue {
-      background: rgba(0, 0, 0, 0.8);
+
+    /* Custom High-Contrast Subtitle Overlay */
+    .sub-overlay {
+      position: absolute;
+      bottom: 54px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 900px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 20;
+      display: none;
+    }
+    .sub-text {
+      display: inline-block;
       color: #ffffff;
+      font-size: clamp(16px, 2.6vw, 25px);
       font-weight: 700;
-      font-size: 1.2rem;
-      line-height: 1.4;
-      text-shadow: 0 0 5px #000, 0 2px 4px #000;
+      line-height: 1.35;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.65);
+      text-shadow: 0 0 5px #000, 0 0 8px #000, 0 2px 4px #000;
     }
 
     /* Floating On-Screen Skip Buttons */
@@ -224,6 +241,11 @@
     .btn-skip-jump:hover { background: #2f2f3a; }
     .btn-skip-jump.intro { color: #ffca28; }
     .btn-skip-jump.outro { color: var(--cyan); }
+    .btn-skip-jump.cc-active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
 
     /* Next Episode Overlay */
     .next-overlay {
@@ -455,6 +477,7 @@
       .grid { grid-template-columns: 1fr; }
       .container { padding: 12px; }
       .skip-btn { bottom: 50px; right: 12px; padding: 8px 14px; font-size: 0.85rem; }
+      .sub-overlay { bottom: 44px; }
       .resume-toast { bottom: 16px; left: 16px; right: 16px; max-width: none; }
     }
   </style>
@@ -483,9 +506,12 @@
   <!-- Video Player Section -->
   <div id="player-section">
     <div class="video-wrapper" id="video-wrapper">
-      <video id="main-video" controls playsinline preload="auto">
-        <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
-      </video>
+      <video id="main-video" controls playsinline preload="auto"></video>
+
+      <!-- Custom High-Contrast Subtitle Overlay -->
+      <div id="sub-overlay" class="sub-overlay">
+        <span id="sub-text" class="sub-text"></span>
+      </div>
 
       <!-- Floating Skip Buttons -->
       <button id="skip-btn" class="skip-btn" onclick="skipIntro()">
@@ -516,6 +542,7 @@
       <div class="quick-controls">
         <button class="btn-skip-jump intro" onclick="skipIntro()"><i class="fa-solid fa-forward"></i> Jump Intro</button>
         <button class="btn-skip-jump outro" onclick="skipOutro()"><i class="fa-solid fa-forward-step"></i> Jump Outro</button>
+        <button class="btn-skip-jump cc-active" id="cc-toggle-btn" onclick="toggleSubtitles()"><i class="fa-solid fa-closed-captioning"></i> CC</button>
         <button class="btn-skip-jump" onclick="playNextEpisode(true)"><i class="fa-solid fa-step-forward"></i> Next</button>
         <label style="font-size:0.75rem; color:var(--muted); display:flex; align-items:center; gap:4px; margin-left:8px; cursor:pointer;">
           <input type="checkbox" id="auto-skip-chk"> Auto-Skip OP
@@ -558,13 +585,19 @@
     let autoNextTimer = null;
     let toastHideTimeout = null;
 
+    let currentCues = [];
+    let subtitlesEnabled = true;
+
     const video = document.getElementById('main-video');
     const skipBtn = document.getElementById('skip-btn');
     const skipOutroBtn = document.getElementById('skip-outro-btn');
+    const subOverlay = document.getElementById('sub-overlay');
+    const subText = document.getElementById('sub-text');
+    const ccToggleBtn = document.getElementById('cc-toggle-btn');
+
     const playerSection = document.getElementById('player-section');
     const currentTitle = document.getElementById('current-title');
     const currentMeta = document.getElementById('current-meta');
-    const subTrack = document.getElementById('sub-track');
     const autoSkipChk = document.getElementById('auto-skip-chk');
     const nextOverlay = document.getElementById('next-overlay');
     const nextEpTitle = document.getElementById('next-ep-title');
@@ -581,6 +614,39 @@
       const m = Math.floor(sec / 60);
       const s = Math.floor(sec % 60);
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Parse SRT or WebVTT into Cue array
+    function parseSubtitles(data) {
+      data = data.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const cues = [];
+      const regex = /(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{3})[^\n]*\n([\s\S]*?)(?=\n\s*\n|\n\d+\s*\n|\n\d{2}:\d{2}:\d{2}|\s*$)/g;
+      let match;
+
+      function toSec(t) {
+        const p = t.replace(',', '.').split(':');
+        return parseFloat(p[0]) * 3600 + parseFloat(p[1]) * 60 + parseFloat(p[2]);
+      }
+
+      while ((match = regex.exec(data)) !== null) {
+        const text = match[3].trim().replace(/\n/g, '<br>');
+        if (text) {
+          cues.push({
+            start: toSec(match[1]),
+            end: toSec(match[2]),
+            text: text
+          });
+        }
+      }
+      return cues;
+    }
+
+    function toggleSubtitles() {
+      subtitlesEnabled = !subtitlesEnabled;
+      ccToggleBtn.classList.toggle('cc-active', subtitlesEnabled);
+      if (!subtitlesEnabled) {
+        subOverlay.style.display = 'none';
+      }
     }
 
     // Load episodes catalog
@@ -603,12 +669,10 @@
           headerResumeText.textContent = `Resume ${ep.id}`;
           headerResumeBtn.style.display = 'inline-flex';
 
-          // Show floating popup toast
           toastTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
           toastMeta.textContent = `Resume from ${timeStr}`;
           resumeToast.style.display = 'flex';
 
-          // Auto-hide toast after 10s if not clicked
           toastHideTimeout = setTimeout(() => {
             closeResumeToast();
           }, 10000);
@@ -701,13 +765,11 @@
       currentEpisodeIndex = epIndex;
       const ep = allEpisodes[epIndex];
 
-      // Save to watched list
       if (!watchedHistory.includes(ep.id)) {
         watchedHistory.push(ep.id);
         localStorage.setItem('aot_watched', JSON.stringify(watchedHistory));
       }
 
-      // Save last played
       lastPlayed = { id: ep.id, title: ep.title || ep.filename, time: startTime, timestamp: Date.now() };
       localStorage.setItem('aot_last_played', JSON.stringify(lastPlayed));
       headerResumeText.textContent = `Resume ${ep.id}`;
@@ -721,26 +783,36 @@
       currentTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
       currentMeta.textContent = `${ep.season_title || ''} • 1080p English Dub`;
 
-      // Set Subtitles
-      if (ep.subtitle_path) {
-        const encodedSubUrl = encodeURI(ep.subtitle_path);
+      // Reset Subtitle cues
+      currentCues = [];
+      subOverlay.style.display = 'none';
+
+      // Remove old track
+      video.querySelectorAll('track').forEach(t => t.remove());
+
+      const subFile = ep.vtt_path || ep.subtitle_path;
+      if (subFile) {
+        const encodedSubUrl = encodeURI(subFile);
         fetch(encodedSubUrl)
           .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.text();
           })
-          .then(srtText => {
-            const vttText = "WEBVTT\n\n" + srtText.replace(/(\d+:\d+:\d+),(\d+)/g, "$1.$2");
-            const blob = new Blob([vttText], { type: 'text/vtt;charset=utf-8' });
-            subTrack.src = URL.createObjectURL(blob);
-            subTrack.track.mode = "showing";
+          .then(rawText => {
+            currentCues = parseSubtitles(rawText);
+
+            // Also attach as native track
+            const track = document.createElement('track');
+            track.kind = 'subtitles';
+            track.label = 'English';
+            track.srclang = 'en';
+            track.src = encodedSubUrl;
+            track.default = true;
+            video.appendChild(track);
           })
           .catch(err => {
             console.warn('Subtitle fetch error:', err);
-            subTrack.src = '';
           });
-      } else {
-        subTrack.src = '';
       }
 
       video.src = ep.stream_url;
@@ -752,7 +824,7 @@
       video.play().catch(e => console.log("Play interrupted:", e));
     }
 
-    // Save playback position periodically
+    // Timeupdate: sync subtitles, skip buttons, and last-played timestamp
     let lastSaveTime = 0;
     video.addEventListener('timeupdate', () => {
       if (currentEpisodeIndex === -1) return;
@@ -760,7 +832,20 @@
       const ts = ep.timestamps || {};
       const cur = video.currentTime;
 
-      // Update last played log in localStorage every 4s
+      // 1. High-Contrast Subtitle Rendering
+      if (subtitlesEnabled && currentCues.length > 0) {
+        const activeCue = currentCues.find(c => cur >= c.start && cur <= c.end);
+        if (activeCue) {
+          subText.innerHTML = activeCue.text;
+          subOverlay.style.display = 'block';
+        } else {
+          subOverlay.style.display = 'none';
+        }
+      } else {
+        subOverlay.style.display = 'none';
+      }
+
+      // 2. Update last played log in localStorage every 4s
       const now = Date.now();
       if (now - lastSaveTime > 4000 && cur > 5) {
         lastSaveTime = now;
@@ -768,7 +853,7 @@
         localStorage.setItem('aot_last_played', JSON.stringify(lastPlayed));
       }
 
-      // Check Opening Skip
+      // 3. Check Opening Skip
       if (ts.op_start && ts.op_end && cur >= ts.op_start && cur < ts.op_end) {
         if (autoSkipChk.checked) {
           video.currentTime = ts.op_end;
@@ -781,7 +866,7 @@
         skipBtn.style.display = 'none';
       }
 
-      // Check Ending Skip
+      // 4. Check Ending Skip
       if (ts.ed_start && ts.ed_end && cur >= ts.ed_start && cur < ts.ed_end) {
         skipOutroBtn.style.display = 'flex';
       } else {
@@ -862,6 +947,9 @@
       if (key === 'tab' || key === 's') {
         e.preventDefault();
         skipIntro();
+      } else if (key === 'c') {
+        e.preventDefault();
+        toggleSubtitles();
       } else if (key === 'n') {
         e.preventDefault();
         playNextEpisode(true);
