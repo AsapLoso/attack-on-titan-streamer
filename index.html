@@ -756,7 +756,6 @@
     document.getElementById('search').addEventListener('input', (e) => {
       const q = e.target.value.toLowerCase().trim();
 
-      // Search bar Easter Egg checks
       if (q === 'sasageyo') {
         triggerSasageyo();
       } else if (q === 'tatakae' || q === 'rumbling') {
@@ -858,12 +857,36 @@
 
       video.src = ep.stream_url;
 
+      // Safe seeking only after metadata is loaded to prevent MEDIA_ERR_NETWORK
       if (startTime > 0) {
-        video.currentTime = startTime;
+        const seekOnReady = () => {
+          video.currentTime = startTime;
+        };
+        video.addEventListener('loadedmetadata', seekOnReady, { once: true });
       }
 
       video.play().catch(e => console.log("Play interrupted:", e));
     }
+
+    // Auto-Recovery from momentary network hiccups
+    video.addEventListener('error', (e) => {
+      const err = video.error;
+      console.warn("Video network error encountered:", err);
+      if (err && (err.code === MediaError.MEDIA_ERR_NETWORK || err.code === MediaError.MEDIA_ERR_DECODE)) {
+        const curTime = video.currentTime;
+        console.log(`Auto-recovering stream from timestamp: ${curTime}s`);
+        setTimeout(() => {
+          if (currentEpisodeIndex !== -1) {
+            const ep = allEpisodes[currentEpisodeIndex];
+            video.src = ep.stream_url;
+            video.addEventListener('loadedmetadata', () => {
+              if (curTime > 0) video.currentTime = curTime;
+              video.play().catch(() => {});
+            }, { once: true });
+          }
+        }, 1200);
+      }
+    });
 
     // Timeupdate
     let lastSaveTime = 0;
