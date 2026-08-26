@@ -673,6 +673,7 @@
     let lastPlayed = JSON.parse(localStorage.getItem('aot_last_played') || 'null');
     let autoNextTimer = null;
     let toastHideTimeout = null;
+    let retryCount = 0;
 
     const video = document.getElementById('main-video');
     const skipBtn = document.getElementById('skip-btn');
@@ -818,6 +819,8 @@
     function playEpisode(epId, startTime = 0) {
       cancelAutoNext();
       closeResumeToast();
+      retryCount = 0;
+
       const epIndex = allEpisodes.findIndex(e => e.id === epId);
       if (epIndex === -1) return;
 
@@ -857,7 +860,6 @@
 
       video.src = ep.stream_url;
 
-      // Safe seeking only after metadata is loaded to prevent MEDIA_ERR_NETWORK
       if (startTime > 0) {
         const seekOnReady = () => {
           video.currentTime = startTime;
@@ -868,23 +870,29 @@
       video.play().catch(e => console.log("Play interrupted:", e));
     }
 
-    // Auto-Recovery from momentary network hiccups
+    // Auto-Recovery from network glitches (max 2 retries)
+    video.addEventListener('playing', () => { retryCount = 0; });
+    video.addEventListener('canplay', () => { retryCount = 0; });
+
     video.addEventListener('error', (e) => {
       const err = video.error;
       console.warn("Video network error encountered:", err);
       if (err && (err.code === MediaError.MEDIA_ERR_NETWORK || err.code === MediaError.MEDIA_ERR_DECODE)) {
-        const curTime = video.currentTime;
-        console.log(`Auto-recovering stream from timestamp: ${curTime}s`);
-        setTimeout(() => {
-          if (currentEpisodeIndex !== -1) {
-            const ep = allEpisodes[currentEpisodeIndex];
-            video.src = ep.stream_url;
-            video.addEventListener('loadedmetadata', () => {
-              if (curTime > 0) video.currentTime = curTime;
-              video.play().catch(() => {});
-            }, { once: true });
-          }
-        }, 1200);
+        if (retryCount < 2) {
+          retryCount++;
+          const curTime = video.currentTime;
+          console.log(`Auto-recovering stream (attempt ${retryCount}) from timestamp: ${curTime}s`);
+          setTimeout(() => {
+            if (currentEpisodeIndex !== -1) {
+              const ep = allEpisodes[currentEpisodeIndex];
+              video.src = ep.stream_url;
+              video.addEventListener('loadedmetadata', () => {
+                if (curTime > 0) video.currentTime = curTime;
+                video.play().catch(() => {});
+              }, { once: true });
+            }
+          }, 1200);
+        }
       }
     });
 
