@@ -31,7 +31,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      padding-bottom: 60px;
+      padding-bottom: 70px;
     }
     header {
       background-color: #16161c;
@@ -67,11 +67,18 @@
       border-radius: 4px;
       font-weight: 600;
     }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      justify-content: flex-end;
+    }
     .search-box {
       position: relative;
-      flex: 1;
-      max-width: 300px;
-      min-width: 170px;
+      max-width: 280px;
+      min-width: 160px;
+      width: 100%;
     }
     .search-box input {
       width: 100%;
@@ -92,6 +99,22 @@
       color: var(--muted);
       font-size: 0.85rem;
     }
+    .header-resume-btn {
+      background: rgba(229, 9, 20, 0.15);
+      border: 1px solid rgba(229, 9, 20, 0.4);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .header-resume-btn:hover { background: var(--accent); }
 
     /* Player Container */
     #player-section {
@@ -243,6 +266,69 @@
       cursor: pointer;
     }
 
+    /* Resume Toast Popup (Netflix Style) */
+    .resume-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(24, 24, 31, 0.96);
+      border: 1px solid #3f3f4e;
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      animation: slideUp 0.4s ease forwards;
+      max-width: 400px;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .resume-toast-info {
+      flex: 1;
+    }
+    .resume-toast-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .resume-toast-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .resume-toast-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .resume-toast-btn:hover { background: var(--accent-hover); }
+    .resume-toast-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .resume-toast-close:hover { color: #fff; }
+
     /* Category Nav Tabs */
     .tabs-nav {
       display: flex;
@@ -369,6 +455,7 @@
       .grid { grid-template-columns: 1fr; }
       .container { padding: 12px; }
       .skip-btn { bottom: 50px; right: 12px; padding: 8px 14px; font-size: 0.85rem; }
+      .resume-toast { bottom: 16px; left: 16px; right: 16px; max-width: none; }
     }
   </style>
 </head>
@@ -382,16 +469,20 @@
       </div>
       <span>1080p Dub</span>
     </div>
-    <div class="search-box">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="search" placeholder="Search 97 episodes...">
+    <div class="header-right">
+      <button id="header-resume-btn" class="header-resume-btn" onclick="resumeLastPlayed()">
+        <i class="fa-solid fa-play"></i> <span id="header-resume-text">Resume S01E01</span>
+      </button>
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="search" placeholder="Search 97 episodes...">
+      </div>
     </div>
   </header>
 
   <!-- Video Player Section -->
   <div id="player-section">
     <div class="video-wrapper" id="video-wrapper">
-      <!-- Standard HTML5 Video with Full Native Controls & Subtitle Track -->
       <video id="main-video" controls playsinline preload="auto">
         <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
       </video>
@@ -448,12 +539,24 @@
     <div id="episodes-grid" class="grid"></div>
   </div>
 
+  <!-- Resume Popup Toast (Netflix Style) -->
+  <div id="resume-toast" class="resume-toast">
+    <div class="resume-toast-info">
+      <div class="resume-toast-title" id="toast-title">Continue Watching?</div>
+      <div class="resume-toast-meta" id="toast-meta">Episode details...</div>
+    </div>
+    <button class="resume-toast-btn" onclick="resumeLastPlayed()"><i class="fa-solid fa-play"></i> Resume</button>
+    <button class="resume-toast-close" onclick="closeResumeToast()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
   <script>
     let allEpisodes = [];
     let currentCategory = 'All';
     let currentEpisodeIndex = -1;
     let watchedHistory = JSON.parse(localStorage.getItem('aot_watched') || '[]');
+    let lastPlayed = JSON.parse(localStorage.getItem('aot_last_played') || 'null');
     let autoNextTimer = null;
+    let toastHideTimeout = null;
 
     const video = document.getElementById('main-video');
     const skipBtn = document.getElementById('skip-btn');
@@ -467,16 +570,65 @@
     const nextEpTitle = document.getElementById('next-ep-title');
     const countdownNum = document.getElementById('countdown-num');
 
+    const resumeToast = document.getElementById('resume-toast');
+    const toastTitle = document.getElementById('toast-title');
+    const toastMeta = document.getElementById('toast-meta');
+    const headerResumeBtn = document.getElementById('header-resume-btn');
+    const headerResumeText = document.getElementById('header-resume-text');
+
+    function formatTime(sec) {
+      if (isNaN(sec) || sec < 0) return "00:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
     // Load episodes catalog
     fetch('episodes.json')
       .then(res => res.json())
       .then(data => {
         allEpisodes = data;
         renderEpisodes();
+        checkAndShowResumePrompt();
       })
       .catch(err => {
         console.error('Failed to load episodes.json:', err);
       });
+
+    function checkAndShowResumePrompt() {
+      if (lastPlayed && lastPlayed.id) {
+        const ep = allEpisodes.find(e => e.id === lastPlayed.id);
+        if (ep) {
+          const timeStr = lastPlayed.time ? formatTime(lastPlayed.time) : "00:00";
+          headerResumeText.textContent = `Resume ${ep.id}`;
+          headerResumeBtn.style.display = 'inline-flex';
+
+          // Show floating popup toast
+          toastTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
+          toastMeta.textContent = `Resume from ${timeStr}`;
+          resumeToast.style.display = 'flex';
+
+          // Auto-hide toast after 10s if not clicked
+          toastHideTimeout = setTimeout(() => {
+            closeResumeToast();
+          }, 10000);
+        }
+      }
+    }
+
+    function closeResumeToast() {
+      clearTimeout(toastHideTimeout);
+      resumeToast.style.display = 'none';
+    }
+
+    function resumeLastPlayed() {
+      closeResumeToast();
+      if (lastPlayed && lastPlayed.id) {
+        playEpisode(lastPlayed.id, lastPlayed.time || 0);
+      } else if (allEpisodes.length > 0) {
+        playEpisode(allEpisodes[0].id, 0);
+      }
+    }
 
     function filterCategory(cat) {
       currentCategory = cat;
@@ -540,18 +692,27 @@
       });
     }
 
-    function playEpisode(epId) {
+    function playEpisode(epId, startTime = 0) {
       cancelAutoNext();
+      closeResumeToast();
       const epIndex = allEpisodes.findIndex(e => e.id === epId);
       if (epIndex === -1) return;
 
       currentEpisodeIndex = epIndex;
       const ep = allEpisodes[epIndex];
 
+      // Save to watched list
       if (!watchedHistory.includes(ep.id)) {
         watchedHistory.push(ep.id);
         localStorage.setItem('aot_watched', JSON.stringify(watchedHistory));
       }
+
+      // Save last played
+      lastPlayed = { id: ep.id, title: ep.title || ep.filename, time: startTime, timestamp: Date.now() };
+      localStorage.setItem('aot_last_played', JSON.stringify(lastPlayed));
+      headerResumeText.textContent = `Resume ${ep.id}`;
+      headerResumeBtn.style.display = 'inline-flex';
+
       renderEpisodes();
 
       playerSection.style.display = 'block';
@@ -583,16 +744,31 @@
       }
 
       video.src = ep.stream_url;
+
+      if (startTime > 0) {
+        video.currentTime = startTime;
+      }
+
       video.play().catch(e => console.log("Play interrupted:", e));
     }
 
-    // Monitor time for floating skip buttons
+    // Save playback position periodically
+    let lastSaveTime = 0;
     video.addEventListener('timeupdate', () => {
       if (currentEpisodeIndex === -1) return;
       const ep = allEpisodes[currentEpisodeIndex];
       const ts = ep.timestamps || {};
       const cur = video.currentTime;
 
+      // Update last played log in localStorage every 4s
+      const now = Date.now();
+      if (now - lastSaveTime > 4000 && cur > 5) {
+        lastSaveTime = now;
+        lastPlayed = { id: ep.id, title: ep.title || ep.filename, time: cur, timestamp: now };
+        localStorage.setItem('aot_last_played', JSON.stringify(lastPlayed));
+      }
+
+      // Check Opening Skip
       if (ts.op_start && ts.op_end && cur >= ts.op_start && cur < ts.op_end) {
         if (autoSkipChk.checked) {
           video.currentTime = ts.op_end;
@@ -605,6 +781,7 @@
         skipBtn.style.display = 'none';
       }
 
+      // Check Ending Skip
       if (ts.ed_start && ts.ed_end && cur >= ts.ed_start && cur < ts.ed_end) {
         skipOutroBtn.style.display = 'flex';
       } else {
@@ -649,7 +826,7 @@
       }
     }
 
-    // Auto-Next Episode on End
+    // Binge Mode Auto-Countdown
     video.addEventListener('ended', () => {
       if (currentEpisodeIndex !== -1 && currentEpisodeIndex + 1 < allEpisodes.length) {
         const nextEp = allEpisodes[currentEpisodeIndex + 1];
