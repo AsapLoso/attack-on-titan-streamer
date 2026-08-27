@@ -804,8 +804,8 @@
       }
     }
 
-    // Load episodes catalog
-    fetch('episodes.json')
+    // Load episodes catalog with cache-buster
+    fetch('episodes.json?v=' + Date.now())
       .then(res => res.json())
       .then(data => {
         allEpisodes = data;
