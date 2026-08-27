@@ -160,38 +160,18 @@ html = f"""<!DOCTYPE html>
       background: #000;
       outline: none;
     }}
+    video#main-video::cue {{
+      background: rgba(0, 0, 0, 0.78);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: clamp(1rem, 2vw, 1.4rem);
+      line-height: 1.35;
+      text-shadow: 0 0 4px #000, 0 0 8px #000;
+    }}
     .video-wrapper:fullscreen video#main-video {{
       width: 100%;
       height: 100%;
       object-fit: contain;
-    }}
-
-    /* Subtitle High-Contrast Screen Overlay */
-    .sub-overlay {{
-      position: absolute;
-      bottom: 50px;
-      left: 4%;
-      right: 4%;
-      text-align: center;
-      pointer-events: none;
-      z-index: 30;
-      display: none;
-    }}
-    .video-wrapper:fullscreen .sub-overlay {{
-      bottom: 75px;
-    }}
-    .sub-text {{
-      display: inline-block;
-      background: rgba(0, 0, 0, 0.82);
-      color: #ffffff;
-      font-size: clamp(1.05rem, 2.3vw, 1.65rem);
-      font-weight: 700;
-      line-height: 1.35;
-      padding: 4px 14px;
-      border-radius: 6px;
-      text-shadow: 0 0 4px #000, 0 0 8px #000;
-      letter-spacing: 0.3px;
-      max-width: 90%;
     }}
 
     /* Floating Skip & Jump Buttons */
@@ -493,11 +473,6 @@ html = f"""<!DOCTYPE html>
         <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
       </video>
 
-      <!-- Subtitle High-Contrast Screen Overlay -->
-      <div id="sub-overlay" class="sub-overlay">
-        <div id="sub-text" class="sub-text"></div>
-      </div>
-
       <!-- Floating Jump to Saved Time Button -->
       <button id="jump-resume-btn" class="skip-btn resume-jump" onclick="jumpToSavedTime()">
         <i class="fa-solid fa-forward"></i> <span id="jump-resume-text">Jump to 14:20</span>
@@ -569,13 +544,10 @@ html = f"""<!DOCTYPE html>
     let toastHideTimeout = null;
     let pendingResumeTime = 0;
 
-    let currentCues = [];
     let ccEnabled = true;
 
     const video = document.getElementById('main-video');
     const subTrack = document.getElementById('sub-track');
-    const subOverlay = document.getElementById('sub-overlay');
-    const subText = document.getElementById('sub-text');
     const ccToggleBtn = document.getElementById('cc-toggle-btn');
 
     const skipBtn = document.getElementById('skip-btn');
@@ -601,40 +573,11 @@ html = f"""<!DOCTYPE html>
       return `${{m < 10 ? '0' : ''}}${{m}}:${{s < 10 ? '0' : ''}}${{s}}`;
     }}
 
-    function parseSubtitles(rawText) {{
-      const text = rawText.replace(/\\r/g, '');
-      const rawLines = text.split('\\n').map(l => l.trim());
-      const cues = [];
-      let curCue = null;
-
-      for (const line of rawLines) {{
-        if (!line) continue;
-        if (/^\\d+$/.test(line)) continue;
-
-        if (line.includes('-->')) {{
-          const m = line.match(/(\\d{{2}}):(\\d{{2}}):(\\d{{2}})[,.](\\d{{3}})\\s*-->\\s*(\\d{{2}}):(\\d{{2}}):(\\d{{2}})[,.](\\d{{3}})/);
-          if (m) {{
-            const start = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]) + parseInt(m[4])/1000;
-            const end = parseInt(m[5])*3600 + parseInt(m[6])*60 + parseInt(m[7]) + parseInt(m[8])/1000;
-            curCue = {{ start, end, text: [] }};
-            cues.push(curCue);
-          }}
-        }} else if (curCue) {{
-          curCue.text.push(line);
-        }}
-      }}
-
-      cues.forEach(c => {{
-        c.html = c.text.join('<br>');
-      }});
-      return cues;
-    }}
-
     function toggleSubtitles() {{
       ccEnabled = !ccEnabled;
       ccToggleBtn.classList.toggle('active', ccEnabled);
-      if (!ccEnabled) {{
-        subOverlay.style.display = 'none';
+      if (subTrack && subTrack.track) {{
+        subTrack.track.mode = ccEnabled ? "showing" : "disabled";
       }}
     }}
 
@@ -755,8 +698,6 @@ html = f"""<!DOCTYPE html>
 
     function playEpisode(epId, startTime = 0) {{
       closeResumeToast();
-      currentCues = [];
-      subOverlay.style.display = 'none';
       pendingResumeTime = (startTime > 10) ? startTime : 0;
 
       const epIndex = allEpisodes.findIndex(e => e.id === epId);
@@ -790,6 +731,7 @@ html = f"""<!DOCTYPE html>
         jumpResumeBtn.style.display = 'none';
       }}
 
+      // Load Native Browser Subtitles
       const subFile = ep.subtitle_path || ep.vtt_path;
       if (subFile) {{
         const encodedSubUrl = encodeURI(subFile);
@@ -799,15 +741,16 @@ html = f"""<!DOCTYPE html>
             return res.text();
           }})
           .then(rawText => {{
-            currentCues = parseSubtitles(rawText);
             const vttText = "WEBVTT\\n\\n" + rawText.replace(/\\r/g, '').replace(/(\\d{{2}}:\\d{{2}}:\\d{{2}}),(\\d{{3}})/g, "$1.$2");
             const blob = new Blob([vttText], {{ type: 'text/vtt;charset=utf-8' }});
             subTrack.src = URL.createObjectURL(blob);
-            if (subTrack.track) subTrack.track.mode = "hidden";
+            if (subTrack.track) subTrack.track.mode = ccEnabled ? "showing" : "disabled";
           }})
           .catch(err => {{
-            currentCues = [];
+            subTrack.src = '';
           }});
+      }} else {{
+        subTrack.src = '';
       }}
 
       video.src = ep.stream_url;
@@ -843,18 +786,6 @@ html = f"""<!DOCTYPE html>
       const ep = allEpisodes[currentEpisodeIndex];
       const ts = ep.timestamps || {{}};
       const cur = video.currentTime;
-
-      if (ccEnabled && currentCues.length > 0) {{
-        const active = currentCues.find(c => cur >= c.start && cur <= c.end);
-        if (active) {{
-          subText.innerHTML = active.html;
-          subOverlay.style.display = 'block';
-        }} else {{
-          subOverlay.style.display = 'none';
-        }}
-      }} else {{
-        subOverlay.style.display = 'none';
-      }}
 
       if (pendingResumeTime > 0 && cur >= 2) {{
         jumpToSavedTime();
