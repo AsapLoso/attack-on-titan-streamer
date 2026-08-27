@@ -803,7 +803,7 @@ html = f"""<!DOCTYPE html>
             const vttText = "WEBVTT\\n\\n" + rawText.replace(/\\r/g, '').replace(/(\\d{{2}}:\\d{{2}}:\\d{{2}}),(\\d{{3}})/g, "$1.$2");
             const blob = new Blob([vttText], {{ type: 'text/vtt;charset=utf-8' }});
             subTrack.src = URL.createObjectURL(blob);
-            if (subTrack.track) subTrack.track.mode = "showing";
+            if (subTrack.track) subTrack.track.mode = "hidden";
           }})
           .catch(err => {{
             currentCues = [];
