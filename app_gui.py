@@ -439,30 +439,7 @@ class AOTStreamHub(tk.Tk):
         self.progress = load_progress()
         self.resume_btn.configure(text=f"▶ Binge: {episode['id']}")
 
-        # 1. Build Binge Queue starting from this episode to the end
-        start_idx = 0
-        for i, ep in enumerate(self.episodes):
-            if ep["id"] == episode["id"]:
-                start_idx = i
-                break
-                
-        queue = self.episodes[start_idx:]
-        
-        # 2. Write dynamic binge session playlist
-        PLAYLISTS_DIR.mkdir(parents=True, exist_ok=True)
-        session_pl = PLAYLISTS_DIR / "binge_session.m3u8"
-        with open(session_pl, "w", encoding="utf-8") as f:
-            f.write("#EXTM3U\n")
-            f.write(f"#PLAYLIST:Attack on Titan (Binge Queue from {episode['id']})\n\n")
-            for ep in queue:
-                title = f"Attack on Titan - {ep['id']}: {ep.get('title', ep['filename'])}"
-                f.write(f"#EXTINF:-1,{title}\n")
-                sub_path = BASE_DIR / ep.get("subtitle_path", "")
-                if sub_path.exists():
-                    f.write(f"#EXTVLCOPT:sub-file={sub_path.resolve().as_posix()}\n")
-                f.write(f"{ep['stream_url']}\n\n")
-
-        # 3. Launch player in Always-On Binge Mode
+        # Direct stream execution with subtitles
         sub_path = BASE_DIR / episode.get("subtitle_path", "")
         has_sub = sub_path.exists() and self.enable_subs_var.get()
         ts = episode.get("timestamps", {})
@@ -470,18 +447,14 @@ class AOTStreamHub(tk.Tk):
         if use_mpv and self.mpv_path:
             cmd = [
                 self.mpv_path,
-                f"--playlist={str(session_pl.resolve())}",
-                "--keep-open=no" # auto advances to next in playlist
+                episode["stream_url"],
+                f"--title=Attack on Titan - {episode['id']}: {episode.get('title', '')}",
+                "--keep-open=yes"
             ]
             if has_sub:
                 cmd.append(f"--sub-file={str(sub_path.resolve())}")
-                
-            auto_val = "1" if self.skip_intro_var.get() else "0"
-            if ts and ts.get("op_start") and ts.get("op_end"):
-                cmd.append(f"--script-opts=op_start={ts['op_start']},op_end={ts['op_end']},auto_skip={auto_val}")
-            else:
-                cmd.append(f"--script-opts=auto_skip={auto_val}")
-                
+            if self.skip_intro_var.get() and ts and ts.get("op_end"):
+                cmd.append(f"--start={int(ts['op_end'])}")
             subprocess.Popen(cmd)
         else:
             if not self.vlc_path:
@@ -489,9 +462,13 @@ class AOTStreamHub(tk.Tk):
                 return
             cmd = [
                 self.vlc_path,
-                str(session_pl.resolve()),
-                "--play-and-exit"
+                episode["stream_url"],
+                f"--meta-title=Attack on Titan - {episode['id']}: {episode.get('title', '')}"
             ]
+            if has_sub:
+                cmd.append(f"--sub-file={str(sub_path.resolve())}")
+            if self.skip_intro_var.get() and ts and ts.get("op_end"):
+                cmd.append(f"--start-time={int(ts['op_end'])}")
             subprocess.Popen(cmd)
 
         self._refresh_episode_list()

@@ -15,8 +15,10 @@
       --card-bg: #18181f;
       --card-hover: #22222b;
       --accent: #e50914;
+      --accent-hover: #b80710;
       --cyan: #00adb5;
       --green: #4ade80;
+      --yellow: #f59e0b;
       --text: #f4f4f5;
       --muted: #a1a1aa;
       --border: #27272e;
@@ -29,7 +31,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      padding-bottom: 50px;
+      padding-bottom: 70px;
     }
     header {
       background-color: #16161c;
@@ -48,6 +50,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      user-select: none;
     }
     .logo h1 {
       font-size: 1.25rem;
@@ -64,11 +67,18 @@
       border-radius: 4px;
       font-weight: 600;
     }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      justify-content: flex-end;
+    }
     .search-box {
       position: relative;
-      max-width: 320px;
-      min-width: 180px;
-      flex: 1;
+      max-width: 280px;
+      min-width: 160px;
+      width: 100%;
     }
     .search-box input {
       width: 100%;
@@ -89,6 +99,22 @@
       color: var(--muted);
       font-size: 0.85rem;
     }
+    .header-resume-btn {
+      background: rgba(229, 9, 20, 0.15);
+      border: 1px solid rgba(229, 9, 20, 0.4);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .header-resume-btn:hover { background: var(--accent); }
 
     /* Player Container */
     #player-section {
@@ -108,6 +134,14 @@
       padding-top: 56.25%; /* 16:9 Aspect Ratio */
       background: #000;
     }
+    .video-wrapper:fullscreen {
+      padding-top: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     video#main-video {
       position: absolute;
       top: 0; left: 0;
@@ -115,19 +149,46 @@
       background: #000;
       outline: none;
     }
-    video::cue {
-      background: rgba(0, 0, 0, 0.75);
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 1.15rem;
-      line-height: 1.4;
-      text-shadow: 0 0 4px #000;
+    .video-wrapper:fullscreen video#main-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
+
+    /* Subtitle High-Contrast Screen Overlay */
+    .sub-overlay {
+      position: absolute;
+      bottom: 50px;
+      left: 4%;
+      right: 4%;
+      text-align: center;
+      pointer-events: none;
+      z-index: 30;
+      display: none;
+    }
+    .video-wrapper:fullscreen .sub-overlay {
+      bottom: 75px;
+    }
+    .sub-text {
+      display: inline-block;
+      background: rgba(0, 0, 0, 0.82);
+      color: #ffffff;
+      font-size: clamp(1.05rem, 2.3vw, 1.65rem);
+      font-weight: 700;
+      line-height: 1.35;
+      padding: 4px 14px;
+      border-radius: 6px;
+      text-shadow: 0 0 4px #000, 0 0 8px #000;
+      letter-spacing: 0.3px;
+      max-width: 90%;
+    }
+
+    /* Floating Skip & Jump Buttons */
     .skip-btn {
       position: absolute;
-      bottom: 60px;
+      bottom: 65px;
       right: 20px;
-      background: rgba(229, 9, 20, 0.9);
+      background: rgba(229, 9, 20, 0.95);
       color: #fff;
       border: 2px solid rgba(255, 255, 255, 0.4);
       padding: 10px 18px;
@@ -138,10 +199,27 @@
       display: none;
       align-items: center;
       gap: 8px;
-      z-index: 30;
+      z-index: 35;
       box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+      animation: pulse 1.5s infinite;
+      backdrop-filter: blur(4px);
     }
-    .player-controls {
+    .skip-btn.ending {
+      background: rgba(0, 173, 181, 0.95);
+    }
+    .skip-btn.resume-jump {
+      background: rgba(245, 158, 11, 0.95);
+      right: auto;
+      left: 20px;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* Player Header / Details */
+    .player-details {
       background: #18181f;
       padding: 12px 18px;
       display: flex;
@@ -149,24 +227,100 @@
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 10px;
+      border-top: 1px solid var(--border);
     }
     .player-title {
       font-weight: 700;
       font-size: 1.05rem;
       color: #fff;
     }
-    .vlc-open-btn {
-      background: #e65100;
+    .player-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .quick-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-skip-jump {
+      background: #23232b;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-skip-jump:hover { background: #2f2f3a; }
+    .btn-skip-jump.intro { color: #ffca28; }
+    .btn-skip-jump.outro { color: var(--cyan); }
+    .btn-skip-jump.cc-btn.active {
+      background: rgba(229, 9, 20, 0.25);
+      border-color: var(--accent);
+      color: #ff4d4d;
+    }
+
+    /* Resume Toast Popup (Netflix Style) */
+    .resume-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(24, 24, 31, 0.96);
+      border: 1px solid #3f3f4e;
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      max-width: 400px;
+    }
+    .resume-toast-info { flex: 1; }
+    .resume-toast-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .resume-toast-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .resume-toast-btn {
+      background: var(--accent);
       color: #fff;
       border: none;
       padding: 8px 14px;
       border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .resume-toast-btn:hover { background: var(--accent-hover); }
+    .resume-toast-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 4px;
     }
 
     /* Category Nav Tabs */
@@ -218,12 +372,17 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      transition: transform 0.2s, background-color 0.2s;
+      transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
       cursor: pointer;
     }
     .card:hover {
       background: var(--card-hover);
+      border-color: #3f3f4e;
       transform: translateY(-2px);
+    }
+    .card.playing {
+      border-color: var(--accent);
+      background: #201a1c;
     }
     .card-top {
       display: flex;
@@ -289,6 +448,9 @@
       header { padding: 10px 14px; }
       .grid { grid-template-columns: 1fr; }
       .container { padding: 12px; }
+      .skip-btn { bottom: 50px; right: 12px; padding: 8px 14px; font-size: 0.85rem; }
+      .skip-btn.resume-jump { left: 12px; }
+      .resume-toast { bottom: 16px; left: 16px; right: 16px; max-width: none; }
     }
   </style>
 </head>
@@ -302,31 +464,59 @@
       </div>
       <span>1080p Dub</span>
     </div>
-    <div class="search-box">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="search" placeholder="Search 97 episodes...">
+    <div class="header-right">
+      <button id="header-resume-btn" class="header-resume-btn" onclick="resumeLastPlayed()">
+        <i class="fa-solid fa-play"></i> <span id="header-resume-text">Resume S01E01</span>
+      </button>
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="search" placeholder="Search 97 episodes...">
+      </div>
     </div>
   </header>
 
   <!-- Video Player Section -->
   <div id="player-section">
-    <div class="video-wrapper">
+    <div class="video-wrapper" id="video-wrapper">
       <video id="main-video" controls playsinline preload="auto">
         <track id="sub-track" kind="subtitles" srclang="en" label="English" default>
       </video>
+
+      <!-- Subtitle High-Contrast Screen Overlay -->
+      <div id="sub-overlay" class="sub-overlay">
+        <div id="sub-text" class="sub-text"></div>
+      </div>
+
+      <!-- Floating Jump to Saved Time Button -->
+      <button id="jump-resume-btn" class="skip-btn resume-jump" onclick="jumpToSavedTime()">
+        <i class="fa-solid fa-forward"></i> <span id="jump-resume-text">Jump to 14:20</span>
+      </button>
+
+      <!-- Floating Skip Buttons -->
       <button id="skip-btn" class="skip-btn" onclick="skipIntro()">
-        <i class="fa-solid fa-forward"></i> Skip Opening
+        <i class="fa-solid fa-forward"></i> Skip Opening (Tab)
+      </button>
+
+      <button id="skip-outro-btn" class="skip-btn ending" onclick="skipOutro()">
+        <i class="fa-solid fa-forward-step"></i> Skip Ending
       </button>
     </div>
-    <div class="player-controls">
+
+    <!-- Episode Details & Quick Jump Buttons -->
+    <div class="player-details">
       <div>
         <div id="current-title" class="player-title">Episode Title</div>
-        <div id="current-meta" style="font-size: 0.75rem; color: var(--muted); margin-top: 2px;">Season 1 • 1080p English Dub</div>
+        <div id="current-meta" class="player-meta">Season 1 • 1080p English Dub</div>
       </div>
-      <div class="player-actions">
-        <a id="vlc-link" class="vlc-open-btn" href="#" target="_blank">
-          <i class="fa-solid fa-play"></i> Open in VLC App
-        </a>
+      <div class="quick-controls">
+        <button class="btn-skip-jump intro" onclick="skipIntro()"><i class="fa-solid fa-forward"></i> Jump Intro</button>
+        <button class="btn-skip-jump outro" onclick="skipOutro()"><i class="fa-solid fa-forward-step"></i> Jump Outro</button>
+        <button id="cc-toggle-btn" class="btn-skip-jump cc-btn active" onclick="toggleSubtitles()"><i class="fa-solid fa-closed-captioning"></i> CC</button>
+        <button class="btn-skip-jump" onclick="toggleFullscreen()"><i class="fa-solid fa-expand"></i> Fullscreen (F)</button>
+        <button class="btn-skip-jump" onclick="playNextEpisode()"><i class="fa-solid fa-step-forward"></i> Next</button>
+        <label style="font-size:0.75rem; color:var(--muted); display:flex; align-items:center; gap:4px; margin-left:8px; cursor:pointer;">
+          <input type="checkbox" id="auto-skip-chk"> Auto-Skip OP
+        </label>
       </div>
     </div>
   </div>
@@ -343,35 +533,152 @@
 
   <!-- Main Episode Grid -->
   <div class="container">
-    <div id="episodes-grid" class="grid">
-      <!-- Injected by JavaScript -->
+    <div id="episodes-grid" class="grid"></div>
+  </div>
+
+  <!-- Resume Popup Toast (Netflix Style) -->
+  <div id="resume-toast" class="resume-toast">
+    <div class="resume-toast-info">
+      <div class="resume-toast-title" id="toast-title">Continue Watching?</div>
+      <div class="resume-toast-meta" id="toast-meta">Episode details...</div>
     </div>
+    <button class="resume-toast-btn" onclick="resumeLastPlayed()"><i class="fa-solid fa-play"></i> Resume</button>
+    <button class="resume-toast-close" onclick="closeResumeToast()"><i class="fa-solid fa-xmark"></i></button>
   </div>
 
   <script>
-    let allEpisodes = [];
+    // Embedded catalog fallback for offline / local file:// support
+    const EMBEDDED_EPISODES = [{"id": "S01E01", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 1, "absolute_num": 1, "title": "To You, in 2000 Years: The Fall of Shiganshina, Part 1", "mal_id": 16498, "mal_ep_num": 1, "filename": "Attack_on_Titan-E1-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E1-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E1-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E01.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E01.en.vtt"}, {"id": "S01E02", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 2, "absolute_num": 2, "title": "That Day: The Fall of Shiganshina, Part 2", "mal_id": 16498, "mal_ep_num": 2, "filename": "Attack_on_Titan-E2-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E2-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E2-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E02.en.srt", "timestamps": {"op_start": 54.3, "op_end": 144.3, "ed_start": 1372.2, "ed_end": 1451}, "vtt_path": "subtitles/Season 1/S01E02.en.vtt"}, {"id": "S01E03", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 3, "absolute_num": 3, "title": "A Dim Light Amid Despair: Humanity's Comeback, Part 1", "mal_id": 16498, "mal_ep_num": 3, "filename": "Attack_on_Titan-E3-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E3-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E3-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E03.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E03.en.vtt"}, {"id": "S01E04", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 4, "absolute_num": 4, "title": "Night of the Graduation Ceremony: Humanity's Comeback, Part 2", "mal_id": 16498, "mal_ep_num": 4, "filename": "Attack_on_Titan-E4-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E4-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E4-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E04.en.srt", "timestamps": {"op_start": 42.2, "op_end": 132.2, "ed_start": 1342.1, "ed_end": 1436.4}, "vtt_path": "subtitles/Season 1/S01E04.en.vtt"}, {"id": "S01E05", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 5, "absolute_num": 5, "title": "First Battle: The Struggle for Trost, Part 1", "mal_id": 16498, "mal_ep_num": 5, "filename": "Attack_on_Titan-E5-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E5-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E5-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E05.en.srt", "timestamps": {"op_start": 52.6, "op_end": 144.1, "ed_start": 1342.4, "ed_end": 1432.4}, "vtt_path": "subtitles/Season 1/S01E05.en.vtt"}, {"id": "S01E06", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 6, "absolute_num": 6, "title": "The World the Girl Saw: The Struggle for Trost, Part 2", "mal_id": 16498, "mal_ep_num": 6, "filename": "Attack_on_Titan-E6-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E6-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E6-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E06.en.srt", "timestamps": {"op_start": 1.5, "op_end": 91.5, "ed_start": 1357.6, "ed_end": 1447.6}, "vtt_path": "subtitles/Season 1/S01E06.en.vtt"}, {"id": "S01E07", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 7, "absolute_num": 7, "title": "Small Blade: The Struggle for Trost, Part 3", "mal_id": 16498, "mal_ep_num": 7, "filename": "Attack_on_Titan-E7-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E7-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E7-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E07.en.srt", "timestamps": {"op_start": 122.5, "op_end": 212.5, "ed_start": 1358.8, "ed_end": 1448.8}, "vtt_path": "subtitles/Season 1/S01E07.en.vtt"}, {"id": "S01E08", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 8, "absolute_num": 8, "title": "I Can Hear His Heartbeat: The Struggle for Trost, Part 4", "mal_id": 16498, "mal_ep_num": 8, "filename": "Attack_on_Titan-E8-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E8-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E8-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E08.en.srt", "timestamps": {"op_start": 77.0, "op_end": 168.5, "ed_start": 1358.9, "ed_end": 1448.9}, "vtt_path": "subtitles/Season 1/S01E08.en.vtt"}, {"id": "S01E09", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 9, "absolute_num": 9, "title": "Whereabouts of His Left Arm: The Struggle for Trost, Part 5", "mal_id": 16498, "mal_ep_num": 9, "filename": "Attack_on_Titan-E9-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E9-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E9-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E09.en.srt", "timestamps": {"op_start": 38.3, "op_end": 128.3, "ed_start": 1358.4, "ed_end": 1448.4}, "vtt_path": "subtitles/Season 1/S01E09.en.vtt"}, {"id": "S01E10", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 10, "absolute_num": 10, "title": "Response: The Struggle for Trost, Part 6", "mal_id": 16498, "mal_ep_num": 10, "filename": "Attack_on_Titan-E10-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E10-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E10-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E10.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E10.en.vtt"}, {"id": "S01E11", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 11, "absolute_num": 11, "title": "Idol: The Struggle for Trost, Part 7", "mal_id": 16498, "mal_ep_num": 11, "filename": "Attack_on_Titan-E11-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E11-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E11-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E11.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E11.en.vtt"}, {"id": "S01E12", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 12, "absolute_num": 12, "title": "Wound: The Struggle for Trost, Part 8", "mal_id": 16498, "mal_ep_num": 12, "filename": "Attack_on_Titan-E12-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E12-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E12-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E12.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E12.en.vtt"}, {"id": "S01E13", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 13, "absolute_num": 13, "title": "Primal Desire: The Struggle for Trost, Part 9", "mal_id": 16498, "mal_ep_num": 13, "filename": "Attack_on_Titan-E13-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E13-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E13-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E13.en.srt", "timestamps": {"op_start": 205.0, "op_end": 297.0, "ed_start": 1349.8, "ed_end": 1439.8}, "vtt_path": "subtitles/Season 1/S01E13.en.vtt"}, {"id": "S01E14", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 14, "absolute_num": 14, "title": "Can't Look into His Eyes Yet: Eve of the Counterattack, Part 1", "mal_id": 16498, "mal_ep_num": 14, "filename": "Attack_on_Titan-E14-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E14-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E14-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E14.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E14.en.vtt"}, {"id": "S01E15", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 15, "absolute_num": 15, "title": "Special Operations Squad: Eve of the Counterattack, Part 2", "mal_id": 16498, "mal_ep_num": 15, "filename": "Attack_on_Titan-E15-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E15-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E15-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E15.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E15.en.vtt"}, {"id": "S01E16", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 16, "absolute_num": 16, "title": "What Should Be Done: Eve of the Counterattack, Part 3", "mal_id": 16498, "mal_ep_num": 16, "filename": "Attack_on_Titan-E16-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E16-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E16-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E16.en.srt", "timestamps": {"op_start": 10.5, "op_end": 100.5, "ed_start": 1358.1, "ed_end": 1448.6}, "vtt_path": "subtitles/Season 1/S01E16.en.vtt"}, {"id": "S01E17", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 17, "absolute_num": 17, "title": "Female Titan: The 57th Exterior Scouting Mission, Part 1", "mal_id": 16498, "mal_ep_num": 17, "filename": "Attack_on_Titan-E17-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E17-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E17-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E17.en.srt", "timestamps": {"op_start": 84.8, "op_end": 169.8, "ed_start": 1358.1, "ed_end": 1449.1}, "vtt_path": "subtitles/Season 1/S01E17.en.vtt"}, {"id": "S01E18", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 18, "absolute_num": 18, "title": "Forest of Giant Trees: The 57th Exterior Scouting Mission, Part 2", "mal_id": 16498, "mal_ep_num": 18, "filename": "Attack_on_Titan-E18-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E18-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E18-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E18.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E18.en.vtt"}, {"id": "S01E19", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 19, "absolute_num": 19, "title": "Bite: The 57th Exterior Scouting Mission, Part 3", "mal_id": 16498, "mal_ep_num": 19, "filename": "Attack_on_Titan-E19-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E19-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E19-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E19.en.srt", "timestamps": {"op_start": 118.7, "op_end": 208.7, "ed_start": 1349.8, "ed_end": 1439.8}, "vtt_path": "subtitles/Season 1/S01E19.en.vtt"}, {"id": "S01E20", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 20, "absolute_num": 20, "title": "Erwin Smith: The 57th Exterior Scouting Mission, Part 4", "mal_id": 16498, "mal_ep_num": 20, "filename": "Attack_on_Titan-E20-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E20-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E20-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E20.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E20.en.vtt"}, {"id": "S01E21", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 21, "absolute_num": 21, "title": "Crushing Blow: The 57th Exterior Scouting Mission, Part 5", "mal_id": 16498, "mal_ep_num": 21, "filename": "Attack_on_Titan-E21-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E21-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E21-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E21.en.srt", "timestamps": {"op_start": 197.7, "op_end": 287.7, "ed_start": 1357.5, "ed_end": 1448.0}, "vtt_path": "subtitles/Season 1/S01E21.en.vtt"}, {"id": "S01E22", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 22, "absolute_num": 22, "title": "The Defeated: The 57th Exterior Scouting Mission, Part 6", "mal_id": 16498, "mal_ep_num": 22, "filename": "Attack_on_Titan-E22-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E22-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E22-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E22.en.srt", "timestamps": {"op_start": 100.5, "op_end": 190.5, "ed_start": 1339, "ed_end": 1433}, "vtt_path": "subtitles/Season 1/S01E22.en.vtt"}, {"id": "S01E23", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 23, "absolute_num": 23, "title": "Smile: Raid on Stohess District, Part 1", "mal_id": 16498, "mal_ep_num": 23, "filename": "Attack_on_Titan-E23-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E23-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E23-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E23.en.srt", "timestamps": {"op_start": 128.4, "op_end": 218.4, "ed_start": 1342.8, "ed_end": 1430.6}, "vtt_path": "subtitles/Season 1/S01E23.en.vtt"}, {"id": "S01E24", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 24, "absolute_num": 24, "title": "Mercy: Raid on Stohess District, Part 2", "mal_id": 16498, "mal_ep_num": 24, "filename": "Attack_on_Titan-E24-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E24-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E24-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E24.en.srt", "timestamps": {"op_start": 59.2, "op_end": 149.2, "ed_start": 1358.0, "ed_end": 1448.0}, "vtt_path": "subtitles/Season 1/S01E24.en.vtt"}, {"id": "S01E25", "type": "tv", "season_num": 1, "season_title": "Season 1", "ep_num": 25, "absolute_num": 25, "title": "Wall: Raid on Stohess District, Part 3", "mal_id": 16498, "mal_ep_num": 25, "filename": "Attack_on_Titan-E25-1080p.mp4", "archive_path": "season-1_DUB-1080p/Attack_on_Titan-E25-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-1_DUB-1080p/Attack_on_Titan-E25-1080p.mp4", "subtitle_path": "subtitles/Season 1/S01E25.en.srt", "timestamps": {"op_start": 84.1, "op_end": 173.6, "ed_start": 1363.5, "ed_end": 1448}, "vtt_path": "subtitles/Season 1/S01E25.en.vtt"}, {"id": "S02E01", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 1, "absolute_num": 26, "title": "Beast Titan", "mal_id": 25777, "mal_ep_num": 1, "filename": "Attack_on_Titan_Season_2-E1-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E1-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E1-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E01.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E01.en.vtt"}, {"id": "S02E02", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 2, "absolute_num": 27, "title": "I'm Home", "mal_id": 25777, "mal_ep_num": 2, "filename": "Attack_on_Titan_Season_2-E2-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E2-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E2-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E02.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E02.en.vtt"}, {"id": "S02E03", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 3, "absolute_num": 28, "title": "Southwestward", "mal_id": 25777, "mal_ep_num": 3, "filename": "Attack_on_Titan_Season_2-E3-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E3-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E3-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E03.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E03.en.vtt"}, {"id": "S02E04", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 4, "absolute_num": 29, "title": "Soldier", "mal_id": 25777, "mal_ep_num": 4, "filename": "Attack_on_Titan_Season_2-E4-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E4-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E4-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E04.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E04.en.vtt"}, {"id": "S02E05", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 5, "absolute_num": 30, "title": "Historia", "mal_id": 25777, "mal_ep_num": 5, "filename": "Attack_on_Titan_Season_2-E5-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E5-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E5-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E05.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E05.en.vtt"}, {"id": "S02E06", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 6, "absolute_num": 31, "title": "Warrior", "mal_id": 25777, "mal_ep_num": 6, "filename": "Attack_on_Titan_Season_2-E6-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E6-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E6-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E06.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E06.en.vtt"}, {"id": "S02E07", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 7, "absolute_num": 32, "title": "Close Combat", "mal_id": 25777, "mal_ep_num": 7, "filename": "Attack_on_Titan_Season_2-E7-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E7-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E7-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E07.en.srt", "timestamps": {"op_start": 98.4, "op_end": 188.4, "ed_start": 1329, "ed_end": 1448}, "vtt_path": "subtitles/Season 2/S02E07.en.vtt"}, {"id": "S02E08", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 8, "absolute_num": 33, "title": "The Hunters", "mal_id": 25777, "mal_ep_num": 8, "filename": "Attack_on_Titan_Season_2-E8-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E8-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E8-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E08.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E08.en.vtt"}, {"id": "S02E09", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 9, "absolute_num": 34, "title": "Opening", "mal_id": 25777, "mal_ep_num": 9, "filename": "Attack_on_Titan_Season_2-E9-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E9-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E9-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E09.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E09.en.vtt"}, {"id": "S02E10", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 10, "absolute_num": 35, "title": "Children", "mal_id": 25777, "mal_ep_num": 10, "filename": "Attack_on_Titan_Season_2-E10-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E10-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E10-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E10.en.srt", "timestamps": {"op_start": 99.4, "op_end": 189.9, "ed_start": 1346.5, "ed_end": 1437.5}, "vtt_path": "subtitles/Season 2/S02E10.en.vtt"}, {"id": "S02E11", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 11, "absolute_num": 36, "title": "Charge", "mal_id": 25777, "mal_ep_num": 11, "filename": "Attack_on_Titan_Season_2-E11-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E11-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E11-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E11.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E11.en.vtt"}, {"id": "S02E12", "type": "tv", "season_num": 2, "season_title": "Season 2", "ep_num": 12, "absolute_num": 37, "title": "Scream", "mal_id": 25777, "mal_ep_num": 12, "filename": "Attack_on_Titan_Season_2-E12-1080p.mp4", "archive_path": "season-2_DUB-1080p/Attack_on_Titan_Season_2-E12-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-2_DUB-1080p/Attack_on_Titan_Season_2-E12-1080p.mp4", "subtitle_path": "subtitles/Season 2/S02E12.en.srt", "timestamps": {"op_start": 167.7, "op_end": 257.7, "ed_start": 1329.0, "ed_end": 1434.0}, "vtt_path": "subtitles/Season 2/S02E12.en.vtt"}, {"id": "S03E01", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 1, "absolute_num": 38, "title": "Smoke Signal", "mal_id": 35760, "mal_ep_num": 1, "filename": "Attack_on_Titan_Season_3-E1-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E1-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E1-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E01.en.srt", "timestamps": {"op_start": 2.15, "op_end": 92.15, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 1/S03E01.en.vtt"}, {"id": "S03E02", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 2, "absolute_num": 39, "title": "Pain", "mal_id": 35760, "mal_ep_num": 2, "filename": "Attack_on_Titan_Season_3-E2-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E2-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E2-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E02.en.srt", "timestamps": {"op_start": 39.3, "op_end": 129.3, "ed_start": 1345.6, "ed_end": 1437.1}, "vtt_path": "subtitles/Season 3 Part 1/S03E02.en.vtt"}, {"id": "S03E03", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 3, "absolute_num": 40, "title": "Old Story", "mal_id": 35760, "mal_ep_num": 3, "filename": "Attack_on_Titan_Season_3-E3-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E3-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E3-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E03.en.srt", "timestamps": {"op_start": 9.8, "op_end": 99.8, "ed_start": 1346.0, "ed_end": 1436.0}, "vtt_path": "subtitles/Season 3 Part 1/S03E03.en.vtt"}, {"id": "S03E04", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 4, "absolute_num": 41, "title": "Trust", "mal_id": 35760, "mal_ep_num": 4, "filename": "Attack_on_Titan_Season_3-E4-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E4-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E4-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E04.en.srt", "timestamps": {"op_start": 119.9, "op_end": 209.9, "ed_start": 1345.5, "ed_end": 1435.5}, "vtt_path": "subtitles/Season 3 Part 1/S03E04.en.vtt"}, {"id": "S03E05", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 5, "absolute_num": 42, "title": "Reply", "mal_id": 35760, "mal_ep_num": 5, "filename": "Attack_on_Titan_Season_3-E5-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E5-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E5-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E05.en.srt", "timestamps": {"op_start": 2.15, "op_end": 92.15, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 1/S03E05.en.vtt"}, {"id": "S03E06", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 6, "absolute_num": 43, "title": "Sin", "mal_id": 35760, "mal_ep_num": 6, "filename": "Attack_on_Titan_Season_3-E6-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E6-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E6-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E06.en.srt", "timestamps": {"op_start": 193.0, "op_end": 283.5, "ed_start": 1345.8, "ed_end": 1435.8}, "vtt_path": "subtitles/Season 3 Part 1/S03E06.en.vtt"}, {"id": "S03E07", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 7, "absolute_num": 44, "title": "Wish", "mal_id": 35760, "mal_ep_num": 7, "filename": "Attack_on_Titan_Season_3-E7-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E7-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E7-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E07.en.srt", "timestamps": {"op_start": 2.15, "op_end": 92.15, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 1/S03E07.en.vtt"}, {"id": "S03E08", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 8, "absolute_num": 45, "title": "Outside the Gates of Orvud District", "mal_id": 35760, "mal_ep_num": 8, "filename": "Attack_on_Titan_Season_3-E8-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E8-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E8-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E08.en.srt", "timestamps": {"op_start": 92.7, "op_end": 182.7, "ed_start": 1333.3, "ed_end": 1423.3}, "vtt_path": "subtitles/Season 3 Part 1/S03E08.en.vtt"}, {"id": "S03E09", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 9, "absolute_num": 46, "title": "Ruler of the Walls", "mal_id": 35760, "mal_ep_num": 9, "filename": "Attack_on_Titan_Season_3-E9-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E9-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E9-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E09.en.srt", "timestamps": {"op_start": 2.15, "op_end": 92.15, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 1/S03E09.en.vtt"}, {"id": "S03E10", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 10, "absolute_num": 47, "title": "Friends", "mal_id": 35760, "mal_ep_num": 10, "filename": "Attack_on_Titan_Season_3-E10-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E10-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E10-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E10.en.srt", "timestamps": {"op_start": 57.3, "op_end": 149.2, "ed_start": 1345.8, "ed_end": 1435.8}, "vtt_path": "subtitles/Season 3 Part 1/S03E10.en.vtt"}, {"id": "S03E11", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 11, "absolute_num": 48, "title": "Bystander", "mal_id": 35760, "mal_ep_num": 11, "filename": "Attack_on_Titan_Season_3-E11-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E11-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E11-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E11.en.srt", "timestamps": {"op_start": 2.15, "op_end": 92.15, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 1/S03E11.en.vtt"}, {"id": "S03E12", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 12, "absolute_num": 49, "title": "Night of the Battle to Retake the Wall", "mal_id": 35760, "mal_ep_num": 12, "filename": "Attack_on_Titan_Season_3-E12-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E12-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E12-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 1/S03E12.en.srt", "timestamps": {"op_start": 197.5, "op_end": 287.5, "ed_start": 1408, "ed_end": 1437}, "vtt_path": "subtitles/Season 3 Part 1/S03E12.en.vtt"}, {"id": "S03E13", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 13, "absolute_num": 50, "title": "The Town Where Everything Began", "mal_id": 38524, "mal_ep_num": 1, "filename": "Attack_on_Titan_Season_3-E13-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E13-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E13-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E13.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E13.en.vtt"}, {"id": "S03E14", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 14, "absolute_num": 51, "title": "Thunder Spears", "mal_id": 38524, "mal_ep_num": 2, "filename": "Attack_on_Titan_Season_3-E14-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E14-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E14-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E14.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E14.en.vtt"}, {"id": "S03E15", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 15, "absolute_num": 52, "title": "Descent", "mal_id": 38524, "mal_ep_num": 3, "filename": "Attack_on_Titan_Season_3-E15-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E15-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E15-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E15.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E15.en.vtt"}, {"id": "S03E16", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 16, "absolute_num": 53, "title": "Perfect Game", "mal_id": 38524, "mal_ep_num": 4, "filename": "Attack_on_Titan_Season_3-E16-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E16-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E16-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E16.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E16.en.vtt"}, {"id": "S03E17", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 17, "absolute_num": 54, "title": "Hero", "mal_id": 38524, "mal_ep_num": 5, "filename": "Attack_on_Titan_Season_3-E17-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E17-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E17-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E17.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E17.en.vtt"}, {"id": "S03E18", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 18, "absolute_num": 55, "title": "Midnight Sun", "mal_id": 38524, "mal_ep_num": 6, "filename": "Attack_on_Titan_Season_3-E18-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E18-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E18-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E18.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.3, "ed_end": 1420.3}, "vtt_path": "subtitles/Season 3 Part 2/S03E18.en.vtt"}, {"id": "S03E19", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 19, "absolute_num": 56, "title": "The Basement", "mal_id": 38524, "mal_ep_num": 7, "filename": "Attack_on_Titan_Season_3-E19-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E19-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E19-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E19.en.srt", "timestamps": {"op_start": 0, "op_end": 91.6, "ed_start": 1220.9, "ed_end": 1296.7}, "vtt_path": "subtitles/Season 3 Part 2/S03E19.en.vtt"}, {"id": "S03E20", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 20, "absolute_num": 57, "title": "That Day", "mal_id": 38524, "mal_ep_num": 8, "filename": "Attack_on_Titan_Season_3-E20-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E20-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E20-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E20.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E20.en.vtt"}, {"id": "S03E21", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 21, "absolute_num": 58, "title": "Attack Titan", "mal_id": 38524, "mal_ep_num": 9, "filename": "Attack_on_Titan_Season_3-E21-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E21-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E21-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E21.en.srt", "timestamps": {"op_start": 111.2, "op_end": 204.8, "ed_start": 1330.2, "ed_end": 1420.2}, "vtt_path": "subtitles/Season 3 Part 2/S03E21.en.vtt"}, {"id": "S03E22", "type": "tv", "season_num": 3, "season_title": "Season 3", "ep_num": 22, "absolute_num": 59, "title": "The Other Side of the Wall", "mal_id": 38524, "mal_ep_num": 10, "filename": "Attack_on_Titan_Season_3-E22-1080p.mp4", "archive_path": "season-3_DUB-1080p/Attack_on_Titan_Season_3-E22-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-3_DUB-1080p/Attack_on_Titan_Season_3-E22-1080p.mp4", "subtitle_path": "subtitles/Season 3 Part 2/S03E22.en.srt", "timestamps": {"op_start": 101.9, "op_end": 193.1, "ed_start": 1311, "ed_end": 1420}, "vtt_path": "subtitles/Season 3 Part 2/S03E22.en.vtt"}, {"id": "S04E01", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 1, "absolute_num": 60, "title": "The Other Side of the Sea", "mal_id": 40028, "mal_ep_num": 1, "filename": "Attack_on_Titan_Final_Season,_Part_1-E1-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E1-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E1-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E01.en.srt", "timestamps": {"op_start": 208, "op_end": 298.6, "ed_start": 1377, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E01.en.vtt"}, {"id": "S04E02", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 2, "absolute_num": 61, "title": "Midnight Train", "mal_id": 40028, "mal_ep_num": 2, "filename": "Attack_on_Titan_Final_Season,_Part_1-E2-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E2-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E2-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E02.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E02.en.vtt"}, {"id": "S04E03", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 3, "absolute_num": 62, "title": "The Door of Hope", "mal_id": 40028, "mal_ep_num": 3, "filename": "Attack_on_Titan_Final_Season,_Part_1-E3-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E3-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E3-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E03.en.srt", "timestamps": {"op_start": 209.8, "op_end": 300.3, "ed_start": 1329.8, "ed_end": 1420.3}, "vtt_path": "subtitles/Final Season Part 1/S04E03.en.vtt"}, {"id": "S04E04", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 4, "absolute_num": 63, "title": "From One Hand to Another", "mal_id": 40028, "mal_ep_num": 4, "filename": "Attack_on_Titan_Final_Season,_Part_1-E4-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E4-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E4-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E04.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E04.en.vtt"}, {"id": "S04E05", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 5, "absolute_num": 64, "title": "Declaration of War", "mal_id": 40028, "mal_ep_num": 5, "filename": "Attack_on_Titan_Final_Season,_Part_1-E5-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E5-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E5-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E05.en.srt", "timestamps": {"op_start": 72.8, "op_end": 163.2, "ed_start": 1329.8, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E05.en.vtt"}, {"id": "S04E06", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 6, "absolute_num": 65, "title": "The War Hammer Titan", "mal_id": 40028, "mal_ep_num": 6, "filename": "Attack_on_Titan_Final_Season,_Part_1-E6-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E6-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E6-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E06.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E06.en.vtt"}, {"id": "S04E07", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 7, "absolute_num": 66, "title": "Assault", "mal_id": 40028, "mal_ep_num": 7, "filename": "Attack_on_Titan_Final_Season,_Part_1-E7-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E7-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E7-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E07.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E07.en.vtt"}, {"id": "S04E08", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 8, "absolute_num": 67, "title": "Assassin's Bullet", "mal_id": 40028, "mal_ep_num": 8, "filename": "Attack_on_Titan_Final_Season,_Part_1-E8-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E8-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E8-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E08.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E08.en.vtt"}, {"id": "S04E09", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 9, "absolute_num": 68, "title": "Brave Volunteers", "mal_id": 40028, "mal_ep_num": 9, "filename": "Attack_on_Titan_Final_Season,_Part_1-E9-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E9-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E9-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E09.en.srt", "timestamps": {"op_start": 172.5, "op_end": 263.1, "ed_start": 1330, "ed_end": 1420.3}, "vtt_path": "subtitles/Final Season Part 1/S04E09.en.vtt"}, {"id": "S04E10", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 10, "absolute_num": 69, "title": "A Sound Argument", "mal_id": 40028, "mal_ep_num": 10, "filename": "Attack_on_Titan_Final_Season,_Part_1-E10-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E10-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E10-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E10.en.srt", "timestamps": {"op_start": 80.8, "op_end": 171.1, "ed_start": 1330, "ed_end": 1420.4}, "vtt_path": "subtitles/Final Season Part 1/S04E10.en.vtt"}, {"id": "S04E11", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 11, "absolute_num": 70, "title": "Deceiver", "mal_id": 40028, "mal_ep_num": 11, "filename": "Attack_on_Titan_Final_Season,_Part_1-E11-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E11-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E11-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E11.en.srt", "timestamps": {"op_start": 70.8, "op_end": 161, "ed_start": 1237.2, "ed_end": 1299}, "vtt_path": "subtitles/Final Season Part 1/S04E11.en.vtt"}, {"id": "S04E12", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 12, "absolute_num": 71, "title": "Guides", "mal_id": 40028, "mal_ep_num": 12, "filename": "Attack_on_Titan_Final_Season,_Part_1-E12-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E12-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E12-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E12.en.srt", "timestamps": {"op_start": 57.8, "op_end": 148.2, "ed_start": 1329.8, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E12.en.vtt"}, {"id": "S04E13", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 13, "absolute_num": 72, "title": "Children of the Forest", "mal_id": 40028, "mal_ep_num": 13, "filename": "Attack_on_Titan_Final_Season,_Part_1-E13-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E13-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E13-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E13.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E13.en.vtt"}, {"id": "S04E14", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 14, "absolute_num": 73, "title": "Savagery", "mal_id": 40028, "mal_ep_num": 14, "filename": "Attack_on_Titan_Final_Season,_Part_1-E14-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E14-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E14-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E14.en.srt", "timestamps": {"op_start": 208.0, "op_end": 298.5, "ed_start": 1377.0, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E14.en.vtt"}, {"id": "S04E15", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 15, "absolute_num": 74, "title": "Sole Salvation", "mal_id": 40028, "mal_ep_num": 15, "filename": "Attack_on_Titan_Final_Season,_Part_1-E15-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E15-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E15-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E15.en.srt", "timestamps": {"op_start": 79.8, "op_end": 170.2, "ed_start": 1329.8, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 1/S04E15.en.vtt"}, {"id": "S04E16", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 1", "ep_num": 16, "absolute_num": 75, "title": "Above and Below", "mal_id": 40028, "mal_ep_num": 16, "filename": "Attack_on_Titan_Final_Season,_Part_1-E16-1080p.mp4", "archive_path": "season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season,_Part_1-E16-1080p.mp4", "stream_url": "https://archive.org/download/shingeki-no-kyojin_aot/season-finale-pt-1_DUB-1080p/Attack_on_Titan_Final_Season%2C_Part_1-E16-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 1/S04E16.en.srt", "timestamps": {"op_start": 87.8, "op_end": 178.2, "ed_start": 1329.8, "ed_end": 1420}, "vtt_path": "subtitles/Final Season Part 1/S04E16.en.vtt"}, {"id": "S04E17", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 17, "absolute_num": 76, "title": "Judgment", "mal_id": 48583, "mal_ep_num": 1, "filename": "Attack_on_Titan_Final_Season_Part_2-E1-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E1-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E1-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E17.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1329.9, "ed_end": 1420.0}, "vtt_path": "subtitles/Final Season Part 2/S04E17.en.vtt"}, {"id": "S04E18", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 18, "absolute_num": 77, "title": "Sneak Attack", "mal_id": 48583, "mal_ep_num": 2, "filename": "Attack_on_Titan_Final_Season_Part_2-E2-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E2-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E2-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E18.en.srt", "timestamps": {"op_start": 408.8, "op_end": 499.1, "ed_start": 1330.1, "ed_end": 1420.4}, "vtt_path": "subtitles/Final Season Part 2/S04E18.en.vtt"}, {"id": "S04E19", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 19, "absolute_num": 78, "title": "Two Brothers", "mal_id": 48583, "mal_ep_num": 3, "filename": "Attack_on_Titan_Final_Season_Part_2-E3-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E3-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E3-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E19.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1329.9, "ed_end": 1420.0}, "vtt_path": "subtitles/Final Season Part 2/S04E19.en.vtt"}, {"id": "S04E20", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 20, "absolute_num": 79, "title": "Memories of the Future", "mal_id": 48583, "mal_ep_num": 4, "filename": "Attack_on_Titan_Final_Season_Part_2-E4-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E4-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E4-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E20.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1329.9, "ed_end": 1420.0}, "vtt_path": "subtitles/Final Season Part 2/S04E20.en.vtt"}, {"id": "S04E21", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 21, "absolute_num": 80, "title": "From You, 2,000 Years Ago", "mal_id": 48583, "mal_ep_num": 5, "filename": "Attack_on_Titan_Final_Season_Part_2-E5-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E5-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E5-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E21.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1329.9, "ed_end": 1420.0}, "vtt_path": "subtitles/Final Season Part 2/S04E21.en.vtt"}, {"id": "S04E22", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 22, "absolute_num": 81, "title": "Thaw", "mal_id": 48583, "mal_ep_num": 6, "filename": "Attack_on_Titan_Final_Season_Part_2-E6-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E6-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E6-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E22.en.srt", "timestamps": {"op_start": 87.1, "op_end": 177.2, "ed_start": 1330.4, "ed_end": 1420.1}, "vtt_path": "subtitles/Final Season Part 2/S04E22.en.vtt"}, {"id": "S04E23", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 23, "absolute_num": 82, "title": "Sunset", "mal_id": 48583, "mal_ep_num": 7, "filename": "Attack_on_Titan_Final_Season_Part_2-E7-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E7-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E7-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E23.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1329.9, "ed_end": 1420.0}, "vtt_path": "subtitles/Final Season Part 2/S04E23.en.vtt"}, {"id": "S04E24", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 24, "absolute_num": 83, "title": "Pride", "mal_id": 48583, "mal_ep_num": 8, "filename": "Attack_on_Titan_Final_Season_Part_2-E8-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E8-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E8-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E24.en.srt", "timestamps": {"op_start": 252.9, "op_end": 343.2, "ed_start": 1329.9, "ed_end": 1420.1}, "vtt_path": "subtitles/Final Season Part 2/S04E24.en.vtt"}, {"id": "S04E25", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 25, "absolute_num": 84, "title": "Night of the End", "mal_id": 48583, "mal_ep_num": 9, "filename": "Attack_on_Titan_Final_Season_Part_2-E9-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E9-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E9-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E25.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1330.0, "ed_end": 1421.6}, "vtt_path": "subtitles/Final Season Part 2/S04E25.en.vtt"}, {"id": "S04E26", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 26, "absolute_num": 85, "title": "Traitor", "mal_id": 48583, "mal_ep_num": 10, "filename": "Attack_on_Titan_Final_Season_Part_2-E10-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E10-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E10-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E26.en.srt", "timestamps": {"op_start": 97.0, "op_end": 187.0, "ed_start": 1329.7, "ed_end": 1420.2}, "vtt_path": "subtitles/Final Season Part 2/S04E26.en.vtt"}, {"id": "S04E27", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 27, "absolute_num": 86, "title": "Retrospective", "mal_id": 48583, "mal_ep_num": 11, "filename": "Attack_on_Titan_Final_Season_Part_2-E11-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E11-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E11-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E27.en.srt", "timestamps": {"op_start": 303.0, "op_end": 388.0, "ed_start": 1210.9, "ed_end": 1301.1}, "vtt_path": "subtitles/Final Season Part 2/S04E27.en.vtt"}, {"id": "S04E28", "type": "tv", "season_num": 4, "season_title": "The Final Season Part 2", "ep_num": 28, "absolute_num": 87, "title": "The Dawn of Humanity", "mal_id": 48583, "mal_ep_num": 12, "filename": "Attack_on_Titan_Final_Season_Part_2-E12-1080p.mp4", "archive_path": "attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E12-1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-chronology-final-season-pt2-uncut/Attack_on_Titan_Final_Season_Part_2-E12-1080p.mp4", "subtitle_path": "subtitles/Final Season Part 2/S04E28.en.srt", "timestamps": {"op_start": 220.0, "op_end": 310.0, "ed_start": 1329.9, "ed_end": 1420.0}, "vtt_path": "subtitles/Final Season Part 2/S04E28.en.vtt"}, {"id": "S04E29", "type": "movie", "season_num": 4, "season_title": "The Final Chapters (Specials)", "ep_num": 29, "absolute_num": 88, "title": "The Final Chapters: Special 1 (The Rumbling / Sinners)", "mal_id": 51535, "mal_ep_num": 1, "filename": "EP.1.TVRip.1080p.mp4", "archive_path": "attack-on-titan-the-final-chapters-ep.-1.-tvrip.-1080p/EP.1.TVRip.1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-the-final-chapters-ep.-1.-tvrip.-1080p/EP.1.TVRip.1080p.mp4", "subtitle_path": "subtitles/Final Chapters/S04E29_Special_1.en.srt", "timestamps": {"op_start": null, "op_end": null, "ed_start": 3500.0, "ed_end": 3664.0}, "vtt_path": "subtitles/Final Chapters/S04E29_Special_1.en.vtt"}, {"id": "S04E30", "type": "movie", "season_num": 4, "season_title": "The Final Chapters (Specials)", "ep_num": 30, "absolute_num": 89, "title": "The Final Chapters: Special 2 (The Battle of Heaven and Earth / Toward the Tree on That Hill)", "mal_id": 54492, "mal_ep_num": 1, "filename": "EP.2.TVRip.1080p.mp4", "archive_path": "attack-on-titan-the-final-chapters-ep.-2.-tvrip.-1080p/EP.2.TVRip.1080p.mp4", "stream_url": "https://archive.org/download/attack-on-titan-the-final-chapters-ep.-2.-tvrip.-1080p/EP.2.TVRip.1080p.mp4", "subtitle_path": "subtitles/Final Chapters/S04E30_Special_2.en.srt", "timestamps": {"op_start": 0, "op_end": 88, "ed_start": 1266.4, "ed_end": 1356.4}, "vtt_path": "subtitles/Final Chapters/S04E30_Special_2.en.vtt"}, {"id": "OVA01", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 1, "canonical_code": "3.5", "title": "Ilse's Notebook: Memoirs of a Scout Regiment Member", "mal_id": 18397, "mal_ep_num": 1, "filename": "%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2001%203.5%202013%20%28576p%20DVD%20x265%20AAC%29%5B9ABDB92C%5D.mp4", "archive_path": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2001%203.5%202013%20%28576p%20DVD%20x265%20AAC%29%5B9ABDB92C%5D.mp4", "stream_url": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2001%203.5%202013%20%28576p%20DVD%20x265%20AAC%29%5B9ABDB92C%5D.mp4", "subtitle_path": "subtitles/OVAs/OVA01_Ilses_Notebook.en.srt", "timestamps": {"op_start": null, "op_end": null, "ed_start": 1307, "ed_end": 1400}, "vtt_path": "subtitles/OVAs/OVA01_Ilses_Notebook.en.vtt"}, {"id": "OVA02", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 2, "canonical_code": "3.25", "title": "The Sudden Visitor: The Torturous Curse of Youth", "mal_id": 18397, "mal_ep_num": 2, "filename": "%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2002%203.25%202014%20%28576p%20DVD%20x265%20AAC%29%5B74B064E9%5D.mp4", "archive_path": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2002%203.25%202014%20%28576p%20DVD%20x265%20AAC%29%5B74B064E9%5D.mp4", "stream_url": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2002%203.25%202014%20%28576p%20DVD%20x265%20AAC%29%5B74B064E9%5D.mp4", "subtitle_path": "subtitles/OVAs/OVA02_The_Sudden_Visitor.en.srt", "timestamps": {"op_start": 74.4, "op_end": 164.4, "ed_start": 1433, "ed_end": 1524}, "vtt_path": "subtitles/OVAs/OVA02_The_Sudden_Visitor.en.vtt"}, {"id": "OVA03", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 3, "canonical_code": "3.75", "title": "Distress", "mal_id": 18397, "mal_ep_num": 3, "filename": "%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2003%203.75%202014%20%28576p%20DVD%20x265%20AAC%29%5B21719207%5D.mp4", "archive_path": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2003%203.75%202014%20%28576p%20DVD%20x265%20AAC%29%5B21719207%5D.mp4", "stream_url": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2003%203.75%202014%20%28576p%20DVD%20x265%20AAC%29%5B21719207%5D.mp4", "subtitle_path": "subtitles/OVAs/OVA03_Distress.en.srt", "timestamps": {"op_start": 3.5, "op_end": 93.5, "ed_start": 1346, "ed_end": 1437}, "vtt_path": "subtitles/OVAs/OVA03_Distress.en.vtt"}, {"id": "OVA04", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 4, "canonical_code": "0.5A", "title": "No Regrets: Part 1", "mal_id": 23755, "mal_ep_num": 1, "filename": "1.%20Attack%20On%20Titan%20No%20Regrets%20Part%201.mp4", "archive_path": "https://archive.org/download/2.-attack-on-titan-no-regrets-part-2_202511/No%20Regrets/1.%20Attack%20On%20Titan%20No%20Regrets%20Part%201.mp4", "stream_url": "https://archive.org/download/2.-attack-on-titan-no-regrets-part-2_202511/No%20Regrets/1.%20Attack%20On%20Titan%20No%20Regrets%20Part%201.mp4", "subtitle_path": "subtitles/OVAs/OVA04_No_Regrets_Part_1.en.srt", "timestamps": {"op_start": null, "op_end": null, "ed_start": 1307.0, "ed_end": 1400.0}, "vtt_path": "subtitles/OVAs/OVA04_No_Regrets_Part_1.en.vtt"}, {"id": "OVA05", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 5, "canonical_code": "0.5B", "title": "No Regrets: Part 2", "mal_id": 23755, "mal_ep_num": 2, "filename": "2.%20Attack%20On%20Titan%20No%20Regrets%20Part%202.mp4", "archive_path": "https://archive.org/download/2.-attack-on-titan-no-regrets-part-2_202511/No%20Regrets/2.%20Attack%20On%20Titan%20No%20Regrets%20Part%202.mp4", "stream_url": "https://archive.org/download/2.-attack-on-titan-no-regrets-part-2_202511/No%20Regrets/2.%20Attack%20On%20Titan%20No%20Regrets%20Part%202.mp4", "subtitle_path": "subtitles/OVAs/OVA05_No_Regrets_Part_2.en.srt", "timestamps": {"op_start": 102.4, "op_end": 192.4, "ed_start": 1330, "ed_end": 1470}, "vtt_path": "subtitles/OVAs/OVA05_No_Regrets_Part_2.en.vtt"}, {"id": "OVA06", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 6, "canonical_code": "16.5A", "title": "Lost Girls: Wall Sina, Goodbye - Part 1", "mal_id": 36106, "mal_ep_num": 1, "filename": "%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2006%2016.5A%202017%20%28576p%20DVD%20x265%20AAC%29%5BC6301971%5D.mp4", "archive_path": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2006%2016.5A%202017%20%28576p%20DVD%20x265%20AAC%29%5BC6301971%5D.mp4", "stream_url": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2006%2016.5A%202017%20%28576p%20DVD%20x265%20AAC%29%5BC6301971%5D.mp4", "subtitle_path": "subtitles/OVAs/OVA06_Lost_Girls_Wall_Sina_Part_1.en.srt", "timestamps": {"op_start": null, "op_end": null, "ed_start": 1307.0, "ed_end": 1400.0}, "vtt_path": "subtitles/OVAs/OVA06_Lost_Girls_Wall_Sina_Part_1.en.vtt"}, {"id": "OVA07", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 7, "canonical_code": "16.5B", "title": "Lost Girls: Wall Sina, Goodbye - Part 2", "mal_id": 36106, "mal_ep_num": 2, "filename": "%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2007%2016.5B%202018%20%28576p%20DVD%20x265%20AAC%29%5BB8351CAE%5D.mp4", "archive_path": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2007%2016.5B%202018%20%28576p%20DVD%20x265%20AAC%29%5BB8351CAE%5D.mp4", "stream_url": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2007%2016.5B%202018%20%28576p%20DVD%20x265%20AAC%29%5BB8351CAE%5D.mp4", "subtitle_path": "subtitles/OVAs/OVA07_Lost_Girls_Wall_Sina_Part_2.en.srt", "timestamps": {"op_start": null, "op_end": null, "ed_start": 1346.2, "ed_end": 1435}, "vtt_path": "subtitles/OVAs/OVA07_Lost_Girls_Wall_Sina_Part_2.en.vtt"}, {"id": "OVA08", "type": "ova", "season_num": 0, "season_title": "Official OVAs", "ep_num": 8, "canonical_code": "16.5C", "title": "Lost Girls: Lost in the Cruel World", "mal_id": 36106, "mal_ep_num": 3, "filename": "%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2008%202018%20%28576p%20DVD%20x265%20AAC%29%5BDC10E9A3%5D.mp4", "archive_path": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2008%202018%20%28576p%20DVD%20x265%20AAC%29%5BDC10E9A3%5D.mp4", "stream_url": "https://archive.org/download/newb-subs-shingeki-no-kyojin-oad-05-0.5-b-2015-576p-dvd-x-265-aac-c-42-c-88-eb/%5BNewbSubs%5D%20Shingeki%20no%20Kyojin%20OAD%2008%202018%20%28576p%20DVD%20x265%20AAC%29%5BDC10E9A3%5D.mp4", "subtitle_path": "subtitles/OVAs/OVA08_Lost_Girls_Lost_in_the_Cruel_World.en.srt", "timestamps": {"op_start": null, "op_end": null, "ed_start": 1307.0, "ed_end": 1400.0}, "vtt_path": "subtitles/OVAs/OVA08_Lost_Girls_Lost_in_the_Cruel_World.en.vtt"}];
+
+    let allEpisodes = EMBEDDED_EPISODES;
     let currentCategory = 'All';
     let currentEpisodeIndex = -1;
     let watchedHistory = JSON.parse(localStorage.getItem('aot_watched') || '[]');
+    let lastPlayed = JSON.parse(localStorage.getItem('aot_last_played') || 'null');
+    let toastHideTimeout = null;
+    let pendingResumeTime = 0;
+
+    let currentCues = [];
+    let ccEnabled = true;
 
     const video = document.getElementById('main-video');
+    const subTrack = document.getElementById('sub-track');
+    const subOverlay = document.getElementById('sub-overlay');
+    const subText = document.getElementById('sub-text');
+    const ccToggleBtn = document.getElementById('cc-toggle-btn');
+
     const skipBtn = document.getElementById('skip-btn');
+    const skipOutroBtn = document.getElementById('skip-outro-btn');
+    const jumpResumeBtn = document.getElementById('jump-resume-btn');
+    const jumpResumeText = document.getElementById('jump-resume-text');
+
     const playerSection = document.getElementById('player-section');
     const currentTitle = document.getElementById('current-title');
     const currentMeta = document.getElementById('current-meta');
-    const vlcLink = document.getElementById('vlc-link');
-    const subTrack = document.getElementById('sub-track');
+    const autoSkipChk = document.getElementById('auto-skip-chk');
 
-    // Load episodes catalog with cache buster
-    fetch('episodes.json?v=' + Date.now())
-      .then(res => res.json())
-      .then(data => {
-        allEpisodes = data;
-        renderEpisodes();
-      })
-      .catch(err => {
-        console.error('Failed to load episodes.json:', err);
+    const resumeToast = document.getElementById('resume-toast');
+    const toastTitle = document.getElementById('toast-title');
+    const toastMeta = document.getElementById('toast-meta');
+    const headerResumeBtn = document.getElementById('header-resume-btn');
+    const headerResumeText = document.getElementById('header-resume-text');
+
+    function formatTime(sec) {
+      if (isNaN(sec) || sec < 0) return "00:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function parseSubtitles(rawText) {
+      const text = rawText.replace(/\r/g, '');
+      const rawLines = text.split('\n').map(l => l.trim());
+      const cues = [];
+      let curCue = null;
+
+      for (const line of rawLines) {
+        if (!line) continue;
+        if (/^\d+$/.test(line)) continue;
+
+        if (line.includes('-->')) {
+          const m = line.match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
+          if (m) {
+            const start = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]) + parseInt(m[4])/1000;
+            const end = parseInt(m[5])*3600 + parseInt(m[6])*60 + parseInt(m[7]) + parseInt(m[8])/1000;
+            curCue = { start, end, text: [] };
+            cues.push(curCue);
+          }
+        } else if (curCue) {
+          curCue.text.push(line);
+        }
+      }
+
+      cues.forEach(c => {
+        c.html = c.text.join('<br>');
       });
+      return cues;
+    }
+
+    function toggleSubtitles() {
+      ccEnabled = !ccEnabled;
+      ccToggleBtn.classList.toggle('active', ccEnabled);
+      if (!ccEnabled) {
+        subOverlay.style.display = 'none';
+      }
+    }
+
+    // Initial render from embedded data immediately
+    renderEpisodes();
+    checkAndShowResumePrompt();
+
+    // Dynamically sync latest episodes.json if running on web server
+    if (window.location.protocol.startsWith('http')) {
+      fetch('episodes.json?v=' + Date.now())
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            allEpisodes = data;
+            renderEpisodes();
+            checkAndShowResumePrompt();
+          }
+        })
+        .catch(err => {
+          console.log('Using embedded catalog fallback');
+        });
+    }
+
+    function checkAndShowResumePrompt() {
+      if (lastPlayed && lastPlayed.id) {
+        const ep = allEpisodes.find(e => e.id === lastPlayed.id);
+        if (ep) {
+          const timeStr = lastPlayed.time ? formatTime(lastPlayed.time) : "00:00";
+          headerResumeText.textContent = `Resume ${ep.id}`;
+          headerResumeBtn.style.display = 'inline-flex';
+
+          toastTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
+          toastMeta.textContent = `Resume from ${timeStr}`;
+          resumeToast.style.display = 'flex';
+
+          toastHideTimeout = setTimeout(() => {
+            closeResumeToast();
+          }, 10000);
+        }
+      }
+    }
+
+    function closeResumeToast() {
+      clearTimeout(toastHideTimeout);
+      resumeToast.style.display = 'none';
+    }
+
+    function resumeLastPlayed() {
+      closeResumeToast();
+      if (lastPlayed && lastPlayed.id) {
+        playEpisode(lastPlayed.id, lastPlayed.time || 0);
+      } else if (allEpisodes.length > 0) {
+        playEpisode(allEpisodes[0].id, 0);
+      }
+    }
 
     function filterCategory(cat) {
       currentCategory = cat;
@@ -404,10 +711,11 @@
         return true;
       });
 
-      filtered.forEach((ep, idx) => {
+      filtered.forEach((ep) => {
         const isWatched = watchedHistory.includes(ep.id);
+        const isCurrent = (currentEpisodeIndex !== -1 && allEpisodes[currentEpisodeIndex].id === ep.id);
         const card = document.createElement('div');
-        card.className = 'card';
+        card.className = `card ${isCurrent ? 'playing' : ''}`;
         card.onclick = () => playEpisode(ep.id);
 
         const badgeClass = ep.type === 'movie' ? 'badge movie' : ep.type === 'ova' ? 'badge ova' : 'badge';
@@ -426,7 +734,7 @@
             </div>
           </div>
           <div class="card-actions">
-            <button class="play-action"><i class="fa-solid fa-play"></i> Play</button>
+            <button class="play-action"><i class="fa-solid fa-play"></i> ${isCurrent ? 'Playing' : 'Play'}</button>
             <div class="watched-tag ${isWatched ? 'show' : ''}"><i class="fa-solid fa-check"></i> Watched</div>
           </div>
         `;
@@ -434,60 +742,141 @@
       });
     }
 
-    function playEpisode(epId) {
+    function playEpisode(epId, startTime = 0) {
+      closeResumeToast();
+      currentCues = [];
+      subOverlay.style.display = 'none';
+      pendingResumeTime = (startTime > 10) ? startTime : 0;
+
       const epIndex = allEpisodes.findIndex(e => e.id === epId);
       if (epIndex === -1) return;
 
       currentEpisodeIndex = epIndex;
       const ep = allEpisodes[epIndex];
 
-      // Mark watched
       if (!watchedHistory.includes(ep.id)) {
         watchedHistory.push(ep.id);
         localStorage.setItem('aot_watched', JSON.stringify(watchedHistory));
-        renderEpisodes();
       }
+
+      lastPlayed = { id: ep.id, title: ep.title || ep.filename, time: startTime, timestamp: Date.now() };
+      localStorage.setItem('aot_last_played', JSON.stringify(lastPlayed));
+      headerResumeText.textContent = `Resume ${ep.id}`;
+      headerResumeBtn.style.display = 'inline-flex';
+
+      renderEpisodes();
 
       playerSection.style.display = 'block';
       playerSection.scrollIntoView({ behavior: 'smooth' });
 
       currentTitle.textContent = `${ep.id}: ${ep.title || ep.filename}`;
       currentMeta.textContent = `${ep.season_title || ''} • 1080p English Dub`;
-      vlcLink.href = `vlc://${ep.stream_url}`;
 
-      // Convert .srt to WebVTT on the fly for browser player
-      const subUrl = ep.subtitle_path || ep.vtt_path;
-      if (subUrl) {
-        fetch(encodeURI(subUrl))
-          .then(res => res.text())
-          .then(srtText => {
-            const vttText = "WEBVTT\n\n" + srtText.replace(/\r/g, '').replace(/(\d+:\d+:\d+),(\d+)/g, "$1.$2");
-            const blob = new Blob([vttText], { type: 'text/vtt' });
+      if (pendingResumeTime > 0) {
+        jumpResumeText.textContent = `Jump to ${formatTime(pendingResumeTime)}`;
+        jumpResumeBtn.style.display = 'flex';
+      } else {
+        jumpResumeBtn.style.display = 'none';
+      }
+
+      const subFile = ep.subtitle_path || ep.vtt_path;
+      if (subFile) {
+        const encodedSubUrl = encodeURI(subFile);
+        fetch(encodedSubUrl)
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.text();
+          })
+          .then(rawText => {
+            currentCues = parseSubtitles(rawText);
+            const vttText = "WEBVTT\n\n" + rawText.replace(/\r/g, '').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2");
+            const blob = new Blob([vttText], { type: 'text/vtt;charset=utf-8' });
             subTrack.src = URL.createObjectURL(blob);
             if (subTrack.track) subTrack.track.mode = "showing";
           })
-          .catch(() => { subTrack.src = ''; });
-      } else {
-        subTrack.src = '';
+          .catch(err => {
+            currentCues = [];
+          });
       }
 
       video.src = ep.stream_url;
-      video.play().catch(e => console.log("Auto-play prevented:", e));
+      video.play().catch(e => console.log("Play started"));
     }
 
-    // Auto Skip Button Monitor
+    function jumpToSavedTime() {
+      if (pendingResumeTime > 0) {
+        video.currentTime = pendingResumeTime;
+        pendingResumeTime = 0;
+        jumpResumeBtn.style.display = 'none';
+      }
+    }
+
+    function toggleFullscreen() {
+      const wrapper = document.getElementById('video-wrapper');
+      if (!document.fullscreenElement) {
+        if (wrapper.requestFullscreen) {
+          wrapper.requestFullscreen();
+        } else if (video.webkitEnterFullscreen) {
+          video.webkitEnterFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    let lastSaveTime = 0;
     video.addEventListener('timeupdate', () => {
       if (currentEpisodeIndex === -1) return;
       const ep = allEpisodes[currentEpisodeIndex];
       const ts = ep.timestamps || {};
+      const cur = video.currentTime;
 
-      if (ts.op_start && ts.op_end) {
-        if (video.currentTime >= ts.op_start && video.currentTime < ts.op_end) {
-          skipBtn.style.display = 'flex';
-          return;
+      if (ccEnabled && currentCues.length > 0) {
+        const active = currentCues.find(c => cur >= c.start && cur <= c.end);
+        if (active) {
+          subText.innerHTML = active.html;
+          subOverlay.style.display = 'block';
+        } else {
+          subOverlay.style.display = 'none';
         }
+      } else {
+        subOverlay.style.display = 'none';
       }
-      skipBtn.style.display = 'none';
+
+      if (pendingResumeTime > 0 && cur >= 2) {
+        jumpToSavedTime();
+      }
+
+      if (cur > 15 && jumpResumeBtn.style.display !== 'none') {
+        jumpResumeBtn.style.display = 'none';
+      }
+
+      const now = Date.now();
+      if (now - lastSaveTime > 4000 && cur > 5) {
+        lastSaveTime = now;
+        lastPlayed = { id: ep.id, title: ep.title || ep.filename, time: cur, timestamp: now };
+        localStorage.setItem('aot_last_played', JSON.stringify(lastPlayed));
+      }
+
+      if (ts.op_start && ts.op_end && cur >= ts.op_start && cur < ts.op_end) {
+        if (autoSkipChk.checked) {
+          video.currentTime = ts.op_end;
+          skipBtn.style.display = 'none';
+        } else {
+          skipBtn.style.display = 'flex';
+          skipBtn.innerHTML = `<i class="fa-solid fa-forward"></i> Skip Opening (${Math.ceil(ts.op_end - cur)}s)`;
+        }
+      } else {
+        skipBtn.style.display = 'none';
+      }
+
+      if (ts.ed_start && ts.ed_end && cur >= ts.ed_start && cur < ts.ed_end) {
+        skipOutroBtn.style.display = 'flex';
+      } else {
+        skipOutroBtn.style.display = 'none';
+      }
     });
 
     function skipIntro() {
@@ -497,30 +886,48 @@
       if (ts.op_end) {
         video.currentTime = ts.op_end;
         skipBtn.style.display = 'none';
+      } else {
+        video.currentTime += 85;
       }
     }
 
-    // Always-On Binge Mode: Auto Play Next Episode
-    video.addEventListener('ended', () => {
+    function skipOutro() {
+      if (currentEpisodeIndex === -1) return;
+      const ep = allEpisodes[currentEpisodeIndex];
+      const ts = ep.timestamps || {};
+      if (ts.ed_end) {
+        video.currentTime = ts.ed_end;
+      } else {
+        playNextEpisode();
+      }
+      skipOutroBtn.style.display = 'none';
+    }
+
+    function playNextEpisode() {
       if (currentEpisodeIndex !== -1 && currentEpisodeIndex + 1 < allEpisodes.length) {
         playEpisode(allEpisodes[currentEpisodeIndex + 1].id);
       }
+    }
+
+    video.addEventListener('ended', () => {
+      playNextEpisode();
     });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (document.activeElement === document.getElementById('search')) return;
       const key = e.key.toLowerCase();
       if (key === 'f') {
-        if (!document.fullscreenElement) {
-          if (video.requestFullscreen) video.requestFullscreen();
-          else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-        } else {
-          if (document.exitFullscreen) document.exitFullscreen();
-        }
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (key === 'c') {
+        e.preventDefault();
+        toggleSubtitles();
       } else if (key === 'tab' || key === 's') {
         e.preventDefault();
         skipIntro();
+      } else if (key === 'n') {
+        e.preventDefault();
+        playNextEpisode();
       }
     });
   </script>
