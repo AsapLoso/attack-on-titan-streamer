@@ -49,6 +49,16 @@ def find_mpv():
         return mpv_in_path
     return None
 
+def find_ffmpeg():
+    """Locate FFmpeg executable on system or conda environment."""
+    which_path = shutil.which("ffmpeg")
+    if which_path:
+        return which_path
+    conda_path = Path(sys.prefix) / "Library" / "bin" / "ffmpeg.exe"
+    if conda_path.exists():
+        return str(conda_path)
+    return None
+
 def get_time_between_endings(ep):
     """Calculate episode story content duration (from post-intro up to ed_start)."""
     ts = ep.get("timestamps", {})
@@ -546,6 +556,23 @@ class AOTStreamHub(tk.Tk):
         batch_combo = ttk.Combobox(body, textvariable=batch_var, values=combo_values, state="readonly", font=("Segoe UI", 9))
         batch_combo.pack(fill=tk.X, pady=(0, 15))
 
+        # Subtitle Embedding Checkbox (FFmpeg detection)
+        ffmpeg_bin = find_ffmpeg()
+        embed_var = tk.BooleanVar(value=bool(ffmpeg_bin))
+        embed_cb = tk.Checkbutton(
+            body,
+            text="🎬 Embed Subtitles into MP4 container (FFmpeg fast-mux)" if ffmpeg_bin else "☐ Embed Subtitles (FFmpeg not found - saving side-by-side)",
+            variable=embed_var,
+            state=tk.NORMAL if ffmpeg_bin else tk.DISABLED,
+            bg="#18181f",
+            fg="#4ade80" if ffmpeg_bin else "#71717a",
+            selectcolor="#27272e",
+            activebackground="#18181f",
+            activeforeground="#ffffff",
+            font=("Segoe UI", 9, "bold" if ffmpeg_bin else "normal")
+        )
+        embed_cb.pack(anchor="w", pady=(0, 15))
+
         # Save Directory Selector
         dest_lbl = tk.Label(body, text="Save To Folder:", font=("Segoe UI", 9, "bold"), fg="#ffffff", bg="#18181f")
         dest_lbl.pack(anchor="w", pady=(0, 4))
@@ -578,6 +605,14 @@ class AOTStreamHub(tk.Tk):
         btn_frame = tk.Frame(win, bg="#18181f", padx=20, pady=15)
         btn_frame.pack(fill=tk.X)
 
+        cancel_flag = {"cancelled": False}
+
+        def on_close():
+            cancel_flag["cancelled"] = True
+            win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", on_close)
+
         def start_download():
             selected_label = batch_var.get()
             count = option_map.get(selected_label, 1)
@@ -587,61 +622,130 @@ class AOTStreamHub(tk.Tk):
             items_to_download = self.episodes[start_idx : start_idx + count]
             dl_action_btn.configure(state=tk.DISABLED, text="Downloading...")
             batch_combo.configure(state=tk.DISABLED)
+            embed_cb.configure(state=tk.DISABLED)
 
             def worker():
                 total_items = len(items_to_download)
+                completed_count = 0
+
                 for idx, ep_item in enumerate(items_to_download):
+                    if cancel_flag["cancelled"]:
+                        break
+
                     ep_id = ep_item["id"]
                     fn = ep_item.get("filename") or f"{ep_id}.mp4"
-                    mp4_path = target_folder / f"{ep_id}_{fn}"
-                    status_lbl.configure(text=f"Downloading ({idx+1}/{total_items}): {ep_id} video...")
+                    final_mp4 = target_folder / f"{ep_id}_{fn}"
+                    tmp_mp4 = target_folder / f".tmp_{ep_id}_{fn}"
+                    target_sub = target_folder / f"{ep_id}_English.srt"
 
-                    # Download video stream
-                    try:
-                        req = urllib.request.Request(ep_item["stream_url"], headers={"User-Agent": "Mozilla/5.0"})
-                        with urllib.request.urlopen(req, timeout=30) as response, open(mp4_path, "wb") as out_file:
-                            total_size = int(response.headers.get("content-length", 0))
-                            downloaded = 0
-                            chunk_size = 1024 * 512
-                            while True:
-                                chunk = response.read(chunk_size)
-                                if not chunk:
+                    # 1. Download Video with Retries
+                    download_ok = False
+                    for attempt in range(1, 4):
+                        if cancel_flag["cancelled"]:
+                            break
+                        try:
+                            win.after(0, lambda t=f"Downloading ({idx+1}/{total_items}): {ep_id} (Attempt {attempt})...": status_lbl.configure(text=t))
+                            req = urllib.request.Request(ep_item["stream_url"], headers={"User-Agent": "Mozilla/5.0"})
+                            with urllib.request.urlopen(req, timeout=35) as response, open(tmp_mp4, "wb") as out_file:
+                                total_size = int(response.headers.get("content-length", 0))
+                                downloaded = 0
+                                chunk_size = 1024 * 512
+                                while not cancel_flag["cancelled"]:
+                                    chunk = response.read(chunk_size)
+                                    if not chunk:
+                                        break
+                                    out_file.write(chunk)
+                                    downloaded += len(chunk)
+                                    if total_size > 0:
+                                        percent = (downloaded / total_size) * 100
+                                        mb_cur = downloaded / (1024 * 1024)
+                                        mb_tot = total_size / (1024 * 1024)
+                                        overall_pct = ((idx + (downloaded / total_size)) / total_items) * 100
+                                        win.after(0, lambda p=overall_pct, txt=f"[{idx+1}/{total_items}] {ep_id}: {mb_cur:.1f}/{mb_tot:.1f} MB ({percent:.0f}%)": (
+                                            progress_bar.configure(value=p),
+                                            status_lbl.configure(text=txt)
+                                        ))
+                                if not cancel_flag["cancelled"]:
+                                    download_ok = True
                                     break
-                                out_file.write(chunk)
-                                downloaded += len(chunk)
-                                if total_size > 0:
-                                    percent = (downloaded / total_size) * 100
-                                    mb_cur = downloaded / (1024 * 1024)
-                                    mb_tot = total_size / (1024 * 1024)
-                                    overall_pct = ((idx + (downloaded / total_size)) / total_items) * 100
-                                    win.after(0, lambda p=overall_pct, txt=f"[{idx+1}/{total_items}] {ep_id}: {mb_cur:.1f}/{mb_tot:.1f} MB ({percent:.0f}%)": (
-                                        progress_bar.configure(value=p),
-                                        status_lbl.configure(text=txt)
-                                    ))
-                    except Exception as e:
-                        print(f"Download error on {ep_id}: {e}")
+                        except Exception as e:
+                            print(f"Download retry {attempt} failed on {ep_id}: {e}")
+                            if attempt < 3:
+                                import time
+                                time.sleep(1.5)
 
-                    # Copy/Download subtitle
+                    if cancel_flag["cancelled"]:
+                        if tmp_mp4.exists():
+                            tmp_mp4.unlink()
+                        break
+
+                    if not download_ok:
+                        continue
+
+                    # 2. Prepare Subtitle File
                     sub_file = ep_item.get("subtitle_path")
+                    has_sub = False
                     if sub_file:
                         local_sub = BASE_DIR / sub_file
-                        target_sub = target_folder / f"{ep_id}_English.srt"
                         if local_sub.exists():
                             shutil.copy2(local_sub, target_sub)
+                            has_sub = True
                         else:
                             try:
                                 sub_url = f"https://asaploso.github.io/attack-on-titan-streamer/{sub_file}"
                                 req_sub = urllib.request.Request(sub_url, headers={"User-Agent": "Mozilla/5.0"})
-                                with urllib.request.urlopen(req_sub, timeout=10) as s_resp, open(target_sub, "wb") as s_out:
+                                with urllib.request.urlopen(req_sub, timeout=12) as s_resp, open(target_sub, "wb") as s_out:
                                     s_out.write(s_resp.read())
+                                has_sub = True
                             except Exception:
                                 pass
 
-                win.after(0, lambda: (
-                    progress_bar.configure(value=100),
-                    status_lbl.configure(text=f"✓ Complete! Saved {total_items} episode(s) to: {target_folder}"),
-                    dl_action_btn.configure(state=tk.NORMAL, text="✓ Download Complete", bg="#4ade80", fg="#000000")
-                ))
+                    # 3. Robust FFmpeg Muxing (Embed Subtitles into MP4)
+                    if embed_var.get() and ffmpeg_bin and has_sub and target_sub.exists() and target_sub.stat().st_size > 50:
+                        win.after(0, lambda: status_lbl.configure(text=f"[{idx+1}/{total_items}] {ep_id}: Embedding subtitles via FFmpeg..."))
+                        muxed_tmp = target_folder / f".mux_{ep_id}_{fn}"
+                        cmd = [
+                            ffmpeg_bin, "-y",
+                            "-i", str(tmp_mp4.resolve()),
+                            "-i", str(target_sub.resolve()),
+                            "-c:v", "copy",
+                            "-c:a", "copy",
+                            "-c:s", "mov_text",
+                            "-metadata:s:s:0", "language=eng",
+                            "-metadata:s:s:0", "title=English CC",
+                            "-movflags", "+faststart",
+                            str(muxed_tmp.resolve())
+                        ]
+                        try:
+                            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=60)
+                            if res.returncode == 0 and muxed_tmp.exists() and muxed_tmp.stat().st_size > 1024 * 1024:
+                                if final_mp4.exists():
+                                    final_mp4.unlink()
+                                muxed_tmp.rename(final_mp4)
+                                if tmp_mp4.exists():
+                                    tmp_mp4.unlink()
+                            else:
+                                if final_mp4.exists():
+                                    final_mp4.unlink()
+                                tmp_mp4.rename(final_mp4)
+                        except Exception as mux_err:
+                            print(f"Mux fallback on {ep_id}: {mux_err}")
+                            if final_mp4.exists():
+                                final_mp4.unlink()
+                            tmp_mp4.rename(final_mp4)
+                    else:
+                        if final_mp4.exists():
+                            final_mp4.unlink()
+                        tmp_mp4.rename(final_mp4)
+
+                    completed_count += 1
+
+                if not cancel_flag["cancelled"]:
+                    win.after(0, lambda: (
+                        progress_bar.configure(value=100),
+                        status_lbl.configure(text=f"✓ Complete! Saved {completed_count} episode(s) to: {target_folder}"),
+                        dl_action_btn.configure(text="📂 Open Folder", state=tk.NORMAL, bg="#4ade80", fg="#000000", command=lambda: os.startfile(target_folder))
+                    ))
 
             t = threading.Thread(target=worker, daemon=True)
             t.start()
@@ -671,7 +775,7 @@ class AOTStreamHub(tk.Tk):
             padx=12,
             pady=8,
             cursor="hand2",
-            command=win.destroy
+            command=on_close
         )
         cancel_btn.pack(side=tk.RIGHT)
 
