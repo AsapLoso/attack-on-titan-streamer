@@ -248,6 +248,139 @@
       color: #ff4d4d;
     }
 
+    /* Download Bar Area */
+    .player-download-bar {
+      background: #131317;
+      border-top: 1px solid #23232b;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .download-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #d1d1d6;
+    }
+    .download-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .download-select {
+      background: #1c1c24;
+      border: 1px solid #33333f;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+      max-width: 320px;
+    }
+    .download-select:focus { border-color: var(--cyan); }
+    .btn-download {
+      background: linear-gradient(135deg, #00adb5, #007c82);
+      border: none;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-download:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-download-secondary {
+      background: #23232b;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-download-secondary:hover { background: #2f2f3a; color: #fff; }
+    .download-status {
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 600;
+      width: 100%;
+      display: none;
+      margin-top: 4px;
+    }
+
+    /* Links & Scripts Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card {
+      background: #18181f;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 650px;
+      width: 100%;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h3 {
+      font-size: 1.1rem;
+      color: #fff;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .modal-body textarea {
+      width: 100%;
+      height: 180px;
+      background: #101014;
+      border: 1px solid var(--border);
+      color: #4ade80;
+      font-family: monospace;
+      font-size: 0.82rem;
+      padding: 10px;
+      border-radius: 6px;
+      resize: vertical;
+      outline: none;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
     /* Resume Toast Popup (Netflix Style) */
     .resume-toast {
       position: fixed;
@@ -431,6 +564,7 @@
       .skip-btn { bottom: 50px; right: 12px; padding: 8px 14px; font-size: 0.85rem; }
       .skip-btn.resume-jump { left: 12px; }
       .resume-toast { bottom: 16px; left: 16px; right: 16px; max-width: none; }
+      .download-select { max-width: 100%; width: 100%; }
     }
   </style>
 </head>
@@ -494,6 +628,44 @@
         </label>
       </div>
     </div>
+
+    <!-- Download Options Bar with Counting Pure Watch-Time Dropdown -->
+    <div class="player-download-bar">
+      <div class="download-label">
+        <i class="fa-solid fa-cloud-arrow-down" style="color: var(--cyan);"></i>
+        <span>Download Video & CC:</span>
+      </div>
+      <div class="download-controls">
+        <select id="download-batch-select" class="download-select">
+          <option value="1">1 ep (21 min)</option>
+        </select>
+        <button id="download-btn" class="btn-download" onclick="startBatchDownload()">
+          <i class="fa-solid fa-download"></i> <span id="download-btn-text">Download MP4 + Subtitles</span>
+        </button>
+        <button class="btn-download-secondary" onclick="openDownloadLinksModal()" title="Export Direct Links & Scripts">
+          <i class="fa-solid fa-terminal"></i> Links / Scripts
+        </button>
+      </div>
+      <div id="download-status" class="download-status"></div>
+    </div>
+  </div>
+
+  <!-- Download Links / Script Modal -->
+  <div id="download-modal" class="modal-backdrop" onclick="closeDownloadLinksModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-list-check" style="color:var(--cyan);"></i> Batch Download URLs & Script</h3>
+        <button class="modal-close" onclick="closeDownloadLinksModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--muted);">Direct MP4 and Subtitle URLs for the selected batch. Copy and paste into terminal (cURL/aria2c) or your download manager.</p>
+      <div class="modal-body">
+        <textarea id="download-modal-text" readonly></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-download" onclick="copyModalScript()"><i class="fa-solid fa-copy"></i> Copy to Clipboard</button>
+        <button class="btn-download-secondary" onclick="closeDownloadLinksModal()">Close</button>
+      </div>
+    </div>
   </div>
 
   <!-- Category Filter Tabs -->
@@ -549,6 +721,11 @@
     const currentMeta = document.getElementById('current-meta');
     const autoSkipChk = document.getElementById('auto-skip-chk');
 
+    const downloadBatchSelect = document.getElementById('download-batch-select');
+    const downloadStatus = document.getElementById('download-status');
+    const downloadModal = document.getElementById('download-modal');
+    const downloadModalText = document.getElementById('download-modal-text');
+
     const resumeToast = document.getElementById('resume-toast');
     const toastTitle = document.getElementById('toast-title');
     const toastMeta = document.getElementById('toast-meta');
@@ -560,6 +737,61 @@
       const m = Math.floor(sec / 60);
       const s = Math.floor(sec % 60);
       return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Time Between Endings Calculation (content duration up to ed_start)
+    function getTimeBetweenEndings(ep) {
+      const ts = ep.timestamps || {};
+      const opEnd = (ts.op_end != null) ? ts.op_end : 0;
+      let edStart;
+
+      if (ts.ed_start != null) {
+        edStart = ts.ed_start;
+      } else if (ep.id === 'S04E29') {
+        edStart = 59 * 60;
+      } else if (ep.id === 'S04E30') {
+        edStart = 83 * 60;
+      } else if (ep.type === 'ova') {
+        edStart = 25 * 60;
+      } else if (ep.type === 'movie') {
+        edStart = 115 * 60;
+      } else {
+        edStart = 22.5 * 60;
+      }
+
+      return Math.max(60, Math.round(edStart - opEnd));
+    }
+
+    function formatNetDuration(sec) {
+      const mins = Math.round(sec / 60);
+      if (mins < 60) return `${mins} min`;
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m === 0 ? `${h}h` : `${h}h ${m}m`;
+    }
+
+    function updateDownloadDropdown() {
+      if (!downloadBatchSelect || currentEpisodeIndex === -1) return;
+      downloadBatchSelect.innerHTML = '';
+
+      const maxAvailable = Math.min(6, allEpisodes.length - currentEpisodeIndex);
+      const currentEp = allEpisodes[currentEpisodeIndex];
+      let cumulativeSec = 0;
+
+      for (let count = 1; count <= maxAvailable; count++) {
+        const ep = allEpisodes[currentEpisodeIndex + count - 1];
+        cumulativeSec += getTimeBetweenEndings(ep);
+        const timeStr = formatNetDuration(cumulativeSec);
+
+        const opt = document.createElement('option');
+        opt.value = count;
+        if (count === 1) {
+          opt.textContent = `1 ep (${timeStr} • ${currentEp.id})`;
+        } else {
+          opt.textContent = `${count} eps (${timeStr} • ${currentEp.id} - ${ep.id})`;
+        }
+        downloadBatchSelect.appendChild(opt);
+      }
     }
 
     function toggleSubtitles() {
@@ -583,6 +815,7 @@
             allEpisodes = data;
             renderEpisodes();
             checkAndShowResumePrompt();
+            if (currentEpisodeIndex !== -1) updateDownloadDropdown();
           }
         })
         .catch(err => {
@@ -720,6 +953,9 @@
         jumpResumeBtn.style.display = 'none';
       }
 
+      // Populate Download Dropdown with Counting Net Durations
+      updateDownloadDropdown();
+
       // Load Native Browser Subtitles
       const subFile = ep.subtitle_path || ep.vtt_path;
       if (subFile) {
@@ -744,6 +980,92 @@
 
       video.src = ep.stream_url;
       video.play().catch(e => console.log("Play started"));
+    }
+
+    // Batch Download Trigger
+    async function startBatchDownload() {
+      if (currentEpisodeIndex === -1) return;
+      const count = parseInt(downloadBatchSelect ? downloadBatchSelect.value : '1') || 1;
+      const items = allEpisodes.slice(currentEpisodeIndex, currentEpisodeIndex + count);
+
+      if (downloadStatus) {
+        downloadStatus.style.display = 'block';
+        downloadStatus.textContent = `Starting download of ${items.length} episode(s)...`;
+      }
+
+      for (let i = 0; i < items.length; i++) {
+        const ep = items[i];
+        if (downloadStatus) {
+          downloadStatus.textContent = `Triggering download (${i + 1}/${items.length}): ${ep.id} - ${ep.title || ep.filename}...`;
+        }
+
+        // 1. Download Video
+        downloadFileUrl(ep.stream_url, `${ep.id}_${ep.filename || 'video.mp4'}`);
+
+        // 2. Download Subtitle
+        const subFile = ep.subtitle_path || ep.vtt_path;
+        if (subFile) {
+          downloadFileUrl(subFile, `${ep.id}_English.srt`);
+        }
+
+        if (i < items.length - 1) {
+          await new Promise(r => setTimeout(r, 600));
+        }
+      }
+
+      if (downloadStatus) {
+        downloadStatus.textContent = `✓ Triggered downloads for ${items.length} episode(s)! Check your browser downloads bar.`;
+        setTimeout(() => { if (downloadStatus) downloadStatus.style.display = 'none'; }, 8000);
+      }
+    }
+
+    function downloadFileUrl(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || '';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // Export Links / Batch Script Modal
+    function openDownloadLinksModal() {
+      if (currentEpisodeIndex === -1) return;
+      const count = parseInt(downloadBatchSelect ? downloadBatchSelect.value : '1') || 1;
+      const items = allEpisodes.slice(currentEpisodeIndex, currentEpisodeIndex + count);
+
+      let text = "# Attack on Titan - Direct Batch Download URLs\n";
+      text += `# Batch: ${items[0].id} to ${items[items.length - 1].id} (${items.length} episodes)\n\n`;
+      text += "# 1. Video URLs (MP4):\n";
+      items.forEach(ep => {
+        text += `${ep.stream_url}\n`;
+      });
+
+      text += "\n# 2. Subtitle URLs (SRT):\n";
+      items.forEach(ep => {
+        const sub = ep.subtitle_path || ep.vtt_path;
+        if (sub) text += `https://asaploso.github.io/attack-on-titan-streamer/${sub}\n`;
+      });
+
+      text += "\n# 3. Ready-to-Run cURL Script (Mac/Linux/Windows):\n";
+      items.forEach(ep => {
+        text += `curl -L -O "${ep.stream_url}"\n`;
+      });
+
+      downloadModalText.value = text;
+      downloadModal.style.display = 'flex';
+    }
+
+    function closeDownloadLinksModal() {
+      downloadModal.style.display = 'none';
+    }
+
+    function copyModalScript() {
+      downloadModalText.select();
+      navigator.clipboard.writeText(downloadModalText.value).then(() => {
+        alert("Copied download URLs & cURL script to clipboard!");
+      });
     }
 
     function jumpToSavedTime() {

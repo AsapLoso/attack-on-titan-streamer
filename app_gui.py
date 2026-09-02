@@ -10,9 +10,11 @@ import os
 import json
 import subprocess
 import shutil
+import threading
+import urllib.request
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 
 BASE_DIR = Path(__file__).resolve().parent
 EPISODES_FILE = BASE_DIR / "episodes.json"
@@ -46,6 +48,34 @@ def find_mpv():
     if mpv_in_path:
         return mpv_in_path
     return None
+
+def get_time_between_endings(ep):
+    """Calculate episode story content duration (from post-intro up to ed_start)."""
+    ts = ep.get("timestamps", {})
+    op_end = ts.get("op_end", 0) if (ts and ts.get("op_end") is not None) else 0
+    if ts and ts.get("ed_start") is not None:
+        ed_start = ts["ed_start"]
+    elif ep.get("id") == "S04E29":
+        ed_start = 59 * 60
+    elif ep.get("id") == "S04E30":
+        ed_start = 83 * 60
+    elif ep.get("type") == "ova":
+        ed_start = 25 * 60
+    elif ep.get("type") == "movie":
+        ed_start = 115 * 60
+    else:
+        ed_start = 22.5 * 60
+
+    return max(60, round(ed_start - op_end))
+
+def format_net_duration(sec):
+    """Format seconds into readable min / h m."""
+    mins = round(sec / 60)
+    if mins < 60:
+        return f"{mins} min"
+    h = mins // 60
+    m = mins % 60
+    return f"{h}h" if m == 0 else f"{h}h {m}m"
 
 def load_episodes():
     """Load episodes list from episodes.json."""
@@ -414,6 +444,23 @@ class AOTStreamHub(tk.Tk):
             watched_badge = tk.Label(bot_row, text="✓ Watched", font=("Segoe UI", 8), fg="#4ade80", bg="#1a1a1f")
             watched_badge.pack(side=tk.LEFT)
 
+        # Download Button
+        dl_btn = tk.Button(
+            card,
+            text="⬇ Download",
+            font=("Segoe UI", 9, "bold"),
+            bg="#162e2e",
+            fg="#00adb5",
+            activebackground="#00adb5",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            padx=10,
+            pady=6,
+            cursor="hand2",
+            command=lambda e=ep: self._open_download_dialog(e)
+        )
+        dl_btn.pack(side=tk.RIGHT, padx=4)
+
         # Binge Play Button
         play_btn = tk.Button(
             card,
@@ -430,6 +477,203 @@ class AOTStreamHub(tk.Tk):
             command=lambda e=ep: self._play_episode(e)
         )
         play_btn.pack(side=tk.RIGHT, padx=5)
+
+    def _open_download_dialog(self, episode):
+        """Open batch download popup with counting net duration dropdown."""
+        start_idx = 0
+        for i, ep in enumerate(self.episodes):
+            if ep["id"] == episode["id"]:
+                start_idx = i
+                break
+
+        max_available = min(6, len(self.episodes) - start_idx)
+        combo_values = []
+        option_map = {}
+        cumulative_sec = 0
+
+        for count in range(1, max_available + 1):
+            ep_item = self.episodes[start_idx + count - 1]
+            cumulative_sec += get_time_between_endings(ep_item)
+            time_str = format_net_duration(cumulative_sec)
+
+            if count == 1:
+                label = f"1 ep ({time_str} • {episode['id']})"
+            else:
+                label = f"{count} eps ({time_str} • {episode['id']} - {ep_item['id']})"
+
+            combo_values.append(label)
+            option_map[label] = count
+
+        # Create Modal Window
+        win = tk.Toplevel(self)
+        win.title(f"⬇ Download Video & Subtitles - {episode['id']}")
+        win.geometry("560x420")
+        win.minsize(500, 380)
+        win.configure(bg="#18181f")
+        win.transient(self)
+        win.grab_set()
+
+        # Header in Modal
+        header = tk.Frame(win, bg="#18181f", padx=20, pady=15)
+        header.pack(fill=tk.X)
+
+        title_lbl = tk.Label(
+            header,
+            text=f"⬇ Download: {episode['id']} - {episode.get('title', episode.get('filename', ''))}",
+            font=("Segoe UI", 12, "bold"),
+            fg="#00adb5",
+            bg="#18181f"
+        )
+        title_lbl.pack(anchor="w")
+
+        info_lbl = tk.Label(
+            header,
+            text=f"{episode.get('season_title', '')} • 1080p English Dub + CC Subtitles",
+            font=("Segoe UI", 9),
+            fg="#a1a1aa",
+            bg="#18181f"
+        )
+        info_lbl.pack(anchor="w", pady=(2, 0))
+
+        body = tk.Frame(win, bg="#18181f", padx=20)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        # Batch Selector Dropdown
+        sel_lbl = tk.Label(body, text="Select Episode Batch (Duration excluding Intro & Outro):", font=("Segoe UI", 9, "bold"), fg="#ffffff", bg="#18181f")
+        sel_lbl.pack(anchor="w", pady=(10, 4))
+
+        batch_var = tk.StringVar(value=combo_values[0] if combo_values else "")
+        batch_combo = ttk.Combobox(body, textvariable=batch_var, values=combo_values, state="readonly", font=("Segoe UI", 9))
+        batch_combo.pack(fill=tk.X, pady=(0, 15))
+
+        # Save Directory Selector
+        dest_lbl = tk.Label(body, text="Save To Folder:", font=("Segoe UI", 9, "bold"), fg="#ffffff", bg="#18181f")
+        dest_lbl.pack(anchor="w", pady=(0, 4))
+
+        default_dir = str((BASE_DIR / "downloads").resolve())
+        dir_var = tk.StringVar(value=default_dir)
+
+        dir_frame = tk.Frame(body, bg="#18181f")
+        dir_frame.pack(fill=tk.X, pady=(0, 15))
+
+        dir_entry = tk.Entry(dir_frame, textvariable=dir_var, font=("Segoe UI", 9), bg="#27272e", fg="#ffffff", insertbackground="#ffffff", bd=0)
+        dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4, padx=(0, 6))
+
+        def browse_dir():
+            chosen = filedialog.askdirectory(initialdir=dir_var.get(), parent=win)
+            if chosen:
+                dir_var.set(chosen)
+
+        browse_btn = tk.Button(dir_frame, text="Browse...", font=("Segoe UI", 9), bg="#33333f", fg="#ffffff", relief=tk.FLAT, padx=10, command=browse_dir)
+        browse_btn.pack(side=tk.RIGHT)
+
+        # Progress elements
+        progress_bar = ttk.Progressbar(body, mode="determinate")
+        progress_bar.pack(fill=tk.X, pady=(10, 4))
+
+        status_lbl = tk.Label(body, text="Ready to download.", font=("Segoe UI", 8), fg="#4ade80", bg="#18181f")
+        status_lbl.pack(anchor="w", pady=(0, 10))
+
+        # Action Buttons
+        btn_frame = tk.Frame(win, bg="#18181f", padx=20, pady=15)
+        btn_frame.pack(fill=tk.X)
+
+        def start_download():
+            selected_label = batch_var.get()
+            count = option_map.get(selected_label, 1)
+            target_folder = Path(dir_var.get())
+            target_folder.mkdir(parents=True, exist_ok=True)
+
+            items_to_download = self.episodes[start_idx : start_idx + count]
+            dl_action_btn.configure(state=tk.DISABLED, text="Downloading...")
+            batch_combo.configure(state=tk.DISABLED)
+
+            def worker():
+                total_items = len(items_to_download)
+                for idx, ep_item in enumerate(items_to_download):
+                    ep_id = ep_item["id"]
+                    fn = ep_item.get("filename") or f"{ep_id}.mp4"
+                    mp4_path = target_folder / f"{ep_id}_{fn}"
+                    status_lbl.configure(text=f"Downloading ({idx+1}/{total_items}): {ep_id} video...")
+
+                    # Download video stream
+                    try:
+                        req = urllib.request.Request(ep_item["stream_url"], headers={"User-Agent": "Mozilla/5.0"})
+                        with urllib.request.urlopen(req, timeout=30) as response, open(mp4_path, "wb") as out_file:
+                            total_size = int(response.headers.get("content-length", 0))
+                            downloaded = 0
+                            chunk_size = 1024 * 512
+                            while True:
+                                chunk = response.read(chunk_size)
+                                if not chunk:
+                                    break
+                                out_file.write(chunk)
+                                downloaded += len(chunk)
+                                if total_size > 0:
+                                    percent = (downloaded / total_size) * 100
+                                    mb_cur = downloaded / (1024 * 1024)
+                                    mb_tot = total_size / (1024 * 1024)
+                                    overall_pct = ((idx + (downloaded / total_size)) / total_items) * 100
+                                    win.after(0, lambda p=overall_pct, txt=f"[{idx+1}/{total_items}] {ep_id}: {mb_cur:.1f}/{mb_tot:.1f} MB ({percent:.0f}%)": (
+                                        progress_bar.configure(value=p),
+                                        status_lbl.configure(text=txt)
+                                    ))
+                    except Exception as e:
+                        print(f"Download error on {ep_id}: {e}")
+
+                    # Copy/Download subtitle
+                    sub_file = ep_item.get("subtitle_path")
+                    if sub_file:
+                        local_sub = BASE_DIR / sub_file
+                        target_sub = target_folder / f"{ep_id}_English.srt"
+                        if local_sub.exists():
+                            shutil.copy2(local_sub, target_sub)
+                        else:
+                            try:
+                                sub_url = f"https://asaploso.github.io/attack-on-titan-streamer/{sub_file}"
+                                req_sub = urllib.request.Request(sub_url, headers={"User-Agent": "Mozilla/5.0"})
+                                with urllib.request.urlopen(req_sub, timeout=10) as s_resp, open(target_sub, "wb") as s_out:
+                                    s_out.write(s_resp.read())
+                            except Exception:
+                                pass
+
+                win.after(0, lambda: (
+                    progress_bar.configure(value=100),
+                    status_lbl.configure(text=f"✓ Complete! Saved {total_items} episode(s) to: {target_folder}"),
+                    dl_action_btn.configure(state=tk.NORMAL, text="✓ Download Complete", bg="#4ade80", fg="#000000")
+                ))
+
+            t = threading.Thread(target=worker, daemon=True)
+            t.start()
+
+        dl_action_btn = tk.Button(
+            btn_frame,
+            text="⬇ Start Download",
+            font=("Segoe UI", 10, "bold"),
+            bg="#00adb5",
+            fg="#ffffff",
+            activebackground="#007c82",
+            relief=tk.FLAT,
+            padx=16,
+            pady=8,
+            cursor="hand2",
+            command=start_download
+        )
+        dl_action_btn.pack(side=tk.RIGHT, padx=6)
+
+        cancel_btn = tk.Button(
+            btn_frame,
+            text="Close",
+            font=("Segoe UI", 9),
+            bg="#27272e",
+            fg="#a1a1aa",
+            relief=tk.FLAT,
+            padx=12,
+            pady=8,
+            cursor="hand2",
+            command=win.destroy
+        )
+        cancel_btn.pack(side=tk.RIGHT)
 
     def _play_episode(self, episode):
         use_mpv = "MPV" in self.player_var.get()
